@@ -12,7 +12,7 @@ use std::{
 #[derive(Parser, Debug)]
 #[clap(author = "Taiko Prover", version, about, long_about = None)]
 pub struct ArgConfiguration {
-    /// Public url of witness file
+    /// File path of witness file
     #[clap(short, long, value_parser)]
     pub witness: String,
     /// Timeout in seconds. Default is 600
@@ -36,18 +36,18 @@ fn parse_args() -> (ProofRequest, PathBuf) {
     let args: Vec<_> = std::env::args().collect();
     let arg_conf = ArgConfiguration::parse_from(&args);
 
-    let witness_url = arg_conf.witness;
+    let witness_path = PathBuf::from(arg_conf.witness);
     let json_url = arg_conf
         .jsonurl
         .unwrap_or("http://localhost:9944".to_string());
-    let proof_path = arg_conf.proof.unwrap_or("proof.json".to_string());
+    let proof_path = PathBuf::from(arg_conf.proof.unwrap_or("proof.json".to_string()));
     let timeout = arg_conf.timeout.unwrap_or(600);
     let schema = arg_conf.schema;
     let data_directory = PathBuf::from(arg_conf.datadir.unwrap_or("./".to_string()));
 
     (
         ProofRequest {
-            witness_url,
+            witness_path,
             json_url,
             proof_path,
             timeout,

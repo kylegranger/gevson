@@ -1,3 +1,6 @@
+mod hash;
+
+use hash::Hash;
 use std::{path::PathBuf, time::SystemTime};
 
 #[derive(PartialEq, Clone, Debug, Copy)]
@@ -24,10 +27,10 @@ impl From<&str> for ProverSchema {
 #[allow(dead_code)]
 pub struct ProofRequest {
     pub json_url: String,
-    pub proof_path: String,
+    pub proof_path: PathBuf,
     pub schema: ProverSchema,
     pub timeout: u64,
-    pub witness_url: String,
+    pub witness_path: PathBuf,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -73,8 +76,18 @@ impl Job {
         //
         // magic happens here!
         //
+        let hash = extract_hash_from_file_content(&self.proof_request.witness_path).unwrap();
+        println!("hash returned: {}", hash);
 
         println!("  set to active");
         self.state = JobState::Active;
     }
+}
+
+pub fn extract_hash_from_file_content(path: &PathBuf) -> Option<Hash> {
+    let mut hasher = blake3::Hasher::new();
+    let fd = std::fs::File::open(path).ok()?;
+    hasher.update_reader(fd).ok()?;
+    let checksum = hasher.finalize();
+    Some((&checksum).into())
 }
