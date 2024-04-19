@@ -1,30 +1,13 @@
+mod job;
+
 use clap::Parser;
+use job::*;
 use std::{
     path::PathBuf,
     thread,
     thread::sleep,
     time::{Duration, SystemTime},
 };
-
-#[derive(PartialEq, Clone, Debug, Copy)]
-pub enum ProverSchema {
-    Katla,
-    Mock,
-    Polygon,
-    Sp1,
-}
-
-impl From<&str> for ProverSchema {
-    fn from(input: &str) -> ProverSchema {
-        match input {
-            "katla" => ProverSchema::Katla,
-            "mock" => ProverSchema::Mock,
-            "polygon" => ProverSchema::Polygon,
-            "sp1" => ProverSchema::Sp1,
-            _ => panic!("invalid mode string: {input}"),
-        }
-    }
-}
 
 #[derive(Parser, Debug)]
 #[clap(author = "Taiko Prover", version, about, long_about = None)]
@@ -47,46 +30,6 @@ pub struct ArgConfiguration {
     /// Data directory to store downloaded files [default: ./ ]
     #[clap(short, long, value_parser)]
     pub datadir: Option<String>,
-}
-
-#[derive(Clone, Debug)]
-#[allow(dead_code)]
-struct ProofRequest {
-    json_url: String,
-    proof_path: String,
-    schema: ProverSchema,
-    timeout: u64,
-    witness_url: String,
-}
-
-#[derive(PartialEq, Clone, Debug)]
-#[allow(dead_code)]
-enum JobState {
-    Pending,
-    Active,
-    Complete,
-    TimedOut,
-    Invalid,
-}
-
-#[derive(Clone, Debug)]
-#[allow(dead_code)]
-struct GevsonJob {
-    proof_request: ProofRequest,
-    data_directory: PathBuf,
-    timestamp: u64,
-    txhash: Option<String>,
-    state: JobState,
-}
-
-impl GevsonJob {
-    fn timed_out(&mut self) -> bool {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
-        self.timestamp + self.proof_request.timeout * 1000 < now
-    }
 }
 
 fn parse_args() -> (ProofRequest, PathBuf) {
@@ -114,64 +57,55 @@ fn parse_args() -> (ProofRequest, PathBuf) {
     )
 }
 
-fn handle_pending_job(job: &mut GevsonJob) -> bool {
-    println!("handle_pending_job");
-    println!("  set to active");
-    job.state = JobState::Active;
-    let invalid = false;
-    invalid
-}
+// fn handle_pending_job(job: &mut GevsonJob) -> bool {
+//     job.do_pending()
+//     // println!("handle_pending_job");
+//     // println!("  set to active");
+//     // job.state = JobState::Active;
+//     // let invalid = false;
+//     // invalid
+// }
 
-fn handle_active_job(job: &mut GevsonJob) -> bool {
-    println!("handle_active_job");
-    if job.timed_out() {
-        println!("  job timed out");
-        job.state = JobState::TimedOut;
-        return true;
-    }
-    false
-}
+// fn handle_active_job(job: &mut GevsonJob) -> bool {
+//     job.do_active()
+//     // println!("handle_active_job");
+//     // if job.timed_out() {
+//     //     println!("  job timed out");
+//     //     job.state = JobState::TimedOut;
+//     //     return true;
+//     // }
+//     // false
+// }
 
 fn run_loop(jobs: &mut Vec<GevsonJob>) {
     loop {
         println!("\nloop top");
-        let mut remove_jobs = false;
-        if jobs.len() > 0 {
-            for job in &mut *jobs {
-                match job.state {
-                    JobState::Pending => {
-                        handle_pending_job(job);
-                    }
-                    JobState::Active => {
-                        if handle_active_job(job) {
-                            remove_jobs = true;
-                        }
-                    }
-                    JobState::Complete => {}
-                    JobState::TimedOut => {}
-                    JobState::Invalid => {}
-                }
+        for job in &mut *jobs {
+            match job.state {
+                JobState::Pending => job.do_pending(),
+                JobState::Active => job.do_active(),
+                _ => (),
             }
+        }
+        let mut n = 0;
+        for job in &mut *jobs {
+            if job.state == JobState::Complete
+                || job.state == JobState::Invalid
+                || job.state == JobState::TimedOut
+            {
+                println!("removing job");
+                jobs.remove(n);
+                break;
+            }
+            n += 1;
+        }
+        if jobs.len() > 0 {
+            sleep(Duration::from_millis(1000));
         } else {
+            println!("done loop");
             break;
         }
-        if remove_jobs {
-            let mut n = 0;
-            for job in &mut *jobs {
-                if job.state == JobState::Complete
-                    || job.state == JobState::Invalid
-                    || job.state == JobState::TimedOut
-                {
-                    println!("removing job");
-                    jobs.remove(n);
-                    break;
-                }
-                n += 1;
-            }
-        }
-        sleep(Duration::from_millis(1000));
     }
-    println!("done loop")
 }
 
 fn main() {
@@ -194,7 +128,6 @@ fn main() {
     });
 
     let work_thread = thread::spawn(move || {
-        // Some expensive computation.
         run_loop(&mut jobs);
     });
 
