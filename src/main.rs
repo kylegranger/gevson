@@ -57,27 +57,7 @@ fn parse_args() -> (ProofRequest, PathBuf) {
     )
 }
 
-// fn handle_pending_job(job: &mut GevsonJob) -> bool {
-//     job.do_pending()
-//     // println!("handle_pending_job");
-//     // println!("  set to active");
-//     // job.state = JobState::Active;
-//     // let invalid = false;
-//     // invalid
-// }
-
-// fn handle_active_job(job: &mut GevsonJob) -> bool {
-//     job.do_active()
-//     // println!("handle_active_job");
-//     // if job.timed_out() {
-//     //     println!("  job timed out");
-//     //     job.state = JobState::TimedOut;
-//     //     return true;
-//     // }
-//     // false
-// }
-
-fn run_loop(jobs: &mut Vec<GevsonJob>) {
+fn run_loop(jobs: &mut Vec<Job>) {
     loop {
         println!("\nloop top");
         for job in &mut *jobs {
@@ -112,14 +92,13 @@ fn main() {
     let (proof_request, data_directory) = parse_args();
     println!("proof_request: {:?}", proof_request);
 
-    let mut jobs: Vec<GevsonJob> = Vec::new();
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
 
-    println!("timestamp: {:?}", timestamp);
-    jobs.push(GevsonJob {
+    let mut jobs: Vec<Job> = Vec::new();
+    jobs.push(Job {
         proof_request,
         data_directory,
         timestamp,

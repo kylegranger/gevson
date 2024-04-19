@@ -42,7 +42,7 @@ pub enum JobState {
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
-pub struct GevsonJob {
+pub struct Job {
     pub proof_request: ProofRequest,
     pub data_directory: PathBuf,
     pub timestamp: u64,
@@ -50,7 +50,7 @@ pub struct GevsonJob {
     pub state: JobState,
 }
 
-impl GevsonJob {
+impl Job {
     fn timed_out(&mut self) -> bool {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
