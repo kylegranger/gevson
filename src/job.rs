@@ -1,13 +1,19 @@
 mod hash;
 
 use crate::witness::{Witness, WitnessSource};
-use anyhow::Result;
-// use hash::Hash;
+use anyhow::{anyhow, Result};
+use std::process::Command;
 use std::{
     fs,
     path::{Path, PathBuf},
     time::SystemTime,
 };
+
+#[derive(Debug, Clone)]
+pub struct GevsonEnv {
+    pub upload_cmd: Option<String>,
+    pub upload_url: Option<String>,
+}
 
 #[derive(PartialEq, Clone, Debug, Copy)]
 pub enum ProverSchema {
@@ -55,9 +61,42 @@ pub enum JobState {
 pub struct Job {
     pub proof_request: ProofRequest,
     pub data_directory: String,
+    pub gevson_env: GevsonEnv,
     pub timestamp: u64,
     pub txhash: Option<String>,
     pub state: JobState,
+}
+
+pub fn system_command(cmd: String) -> Result<()> {
+    // this is a truly sucky thing about Rust
+    let mut parts = cmd.split_whitespace();
+    let mut args = Vec::new();
+    loop {
+        let n = parts.next();
+        if n.is_none() {
+            break;
+        }
+        args.push(n.unwrap().to_string());
+    }
+    tracing::info!("got this array: {:?}", args);
+    let arg0 = args[0].clone();
+    args.remove(0);
+
+    let output = Command::new(arg0)
+        .args(args)
+        .output()
+        .expect("failed to execute process");
+
+    tracing::info!("system_command status: {}", output.status);
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let stderr = format!("{}", String::from_utf8_lossy(&output.stderr));
+    let success = output.status.success();
+    tracing::info!("success: {}", success);
+    let res = match success {
+        true => Ok(()),
+        false => Err(anyhow!(stderr)),
+    };
+    res
 }
 
 impl Job {
@@ -77,6 +116,27 @@ impl Job {
         }
         Ok(())
     }
+    fn upload_file(&mut self, localfile: &String) -> Result<String> {
+        // let
+        if self.gevson_env.upload_cmd.is_none() {
+            tracing::warn!("No upload command template string");
+            return Err(anyhow!("No upload command template string"));
+        }
+        if self.gevson_env.upload_url.is_none() {
+            tracing::warn!("No upload url template string");
+            return Err(anyhow!("No upload url template string"));
+        }
+        let mut cmd = self.gevson_env.upload_cmd.as_ref().unwrap().clone();
+        let mut url = self.gevson_env.upload_url.as_ref().unwrap().clone();
+        cmd = cmd.replace("UPLOAD_PATH", localfile);
+        cmd = cmd.replace("UPLOAD_FILE", &self.proof_request.witness_name);
+        url = url.replace("UPLOAD_FILE", &self.proof_request.witness_name);
+        tracing::info!("new upload cmd: {}", cmd);
+        tracing::info!("new upload url: {}", url);
+        _ = system_command(cmd)?;
+
+        Ok(url)
+    }
 
     pub fn do_pending(&mut self) -> Result<()> {
         tracing::info!("job: do_pending: {:?}", self);
@@ -86,18 +146,22 @@ impl Job {
         witness.init(self.proof_request.source.clone())?;
 
         // write the file and get checksum
-        let localpath = format!("{}/{}", self.data_directory, witness.filename);
-        let localpath = Path::new(&localpath);
+        let localfile = format!("{}/{}", self.data_directory, witness.filename);
+        let localpath = Path::new(&localfile);
+
+        // let localpath = Path::new(&localpath);
         fs::write(localpath, witness.data)?;
-        // fs::write(
-        //     Path::new("./proof.json"),
-        //     serde_json::to_vec(&block_proof_data).unwrap(),
-        // )
-        // .unwrap();
-        // tracing::trace!("job: witness_path: {:?}", self.proof_request.witness_path);
-        let hash = extract_hash_from_file_content(localpath)?;
+        let hash = extract_hash_from_file_content(Path::new(localpath))?;
         tracing::info!("hash returned: {:?}", hash);
-        tracing::info!("  set to active");
+
+        // if source is not url, upload file
+        let url = match self.proof_request.source.clone() {
+            WitnessSource::Url(url) => Ok(url),
+            _ => self.upload_file(&localfile),
+        }?;
+
+        tracing::info!("final witness url: {}", url);
+        tracing::info!("set job to active");
         self.state = JobState::Active;
         Ok(())
     }

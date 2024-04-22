@@ -12,12 +12,6 @@ use std::{
 use tracing_subscriber::{filter::LevelFilter, fmt::format::FmtSpan, EnvFilter};
 use witness::WitnessSource;
 
-#[derive(Debug)]
-struct GevsonEnv {
-    upload_cmd: Option<String>,
-    upload_url: Option<String>,
-}
-
 #[derive(Parser, Debug)]
 #[clap(author = "Taiko Prover", version, about, long_about = None)]
 pub struct ArgConfiguration {
@@ -56,6 +50,8 @@ fn get_env() -> GevsonEnv {
         Ok(res) => Some(res),
         _ => None,
     };
+    tracing::trace!("upload cmd {:?}", upload_cmd);
+    tracing::trace!("upload url {:?}", upload_url);
     GevsonEnv {
         upload_cmd,
         upload_url,
@@ -158,6 +154,7 @@ fn main() {
     jobs.push(Job {
         proof_request,
         data_directory,
+        gevson_env,
         timestamp,
         txhash: None,
         state: JobState::Pending,
