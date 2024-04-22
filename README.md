@@ -36,3 +36,7 @@ export GEV_UPLOAD_URL='https://gevulot-test.eu-central-1.linodeobjects.com/UPLOA
 
 
 RUST_LOG=trace ./target/debug/gevson -n named  -s katla -f gevulot/testwit.json -t 6 -d ./data
+
+
+ RUST_LOG=trace ./target/debug/gevson -n named  -s katla -u https://gevulot-test.eu-central-1.linodeobjects.com/named -t 6 -d ./data
+ 

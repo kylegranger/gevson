@@ -63,7 +63,9 @@ fn parse_args() -> (ProofRequest, String) {
     let arg_conf = ArgConfiguration::parse_from(&args);
     let witness_name = arg_conf.name;
 
-    let witness_path = arg_conf.filepath.unwrap();
+    // let witness_path = arg_conf.filepath;
+    let witness_url = arg_conf.url.unwrap();
+
     // let filename = witness_path
     //     .file_name()
     //     .unwrap()
@@ -81,7 +83,7 @@ fn parse_args() -> (ProofRequest, String) {
     (
         ProofRequest {
             witness_name,
-            source: WitnessSource::Filepath(witness_path),
+            source: WitnessSource::Url(witness_url),
             json_url,
             proof_path,
             timeout,
