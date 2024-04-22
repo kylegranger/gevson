@@ -27,6 +27,7 @@ impl From<&str> for ProverSchema {
 #[allow(dead_code)]
 pub struct ProofRequest {
     pub json_url: String,
+    pub filename: String,
     pub proof_path: PathBuf,
     pub schema: ProverSchema,
     pub timeout: u64,
@@ -63,31 +64,33 @@ impl Job {
     }
 
     pub fn do_active(&mut self) {
-        println!("job: do_active");
+        tracing::trace!("job: do_active");
         if self.timed_out() {
-            println!("  job timed out");
+            tracing::info!("  job timed out");
             self.state = JobState::TimedOut;
         }
     }
 
     pub fn do_pending(&mut self) {
-        println!("job: do_pending");
+        // tracing::info!("job: do_pending: {:?}", self);
+
+        // let local_path = create_local_witness_file(self.proof_request.witness_path);
 
         //
         // magic happens here!
         //
+        tracing::trace!("job: witness_path: {:?}", self.proof_request.witness_path);
         let hash = extract_hash_from_file_content(&self.proof_request.witness_path).unwrap();
-        println!("hash returned: {}", hash);
-
-        println!("  set to active");
+        tracing::info!("hash returned: {:?}", hash);
+        tracing::info!("  set to active");
         self.state = JobState::Active;
     }
 }
 
-pub fn extract_hash_from_file_content(path: &PathBuf) -> Option<Hash> {
+pub fn extract_hash_from_file_content(path: &PathBuf) -> Option<String> {
     let mut hasher = blake3::Hasher::new();
     let fd = std::fs::File::open(path).ok()?;
     hasher.update_reader(fd).ok()?;
-    let checksum = hasher.finalize();
+    let checksum = hasher.finalize().to_string();
     Some((&checksum).into())
 }
