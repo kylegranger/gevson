@@ -29,9 +29,9 @@ impl Witness {
 
     pub fn init(&mut self, source: WitnessSource) -> Result<()> {
         match source {
-            // WitnessSource::Url(url) => {
-            //     todo!()
-            // }
+            WitnessSource::Url(url) => {
+                todo!()
+            }
             WitnessSource::Data(data) => {
                 self.data = data;
             }
