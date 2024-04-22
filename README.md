@@ -34,4 +34,4 @@ For development and testing, I would migrate the currently running Taiko tasker 
 GEV_UPLOAD_CMD='s3cmd put --acl-public UPLOAD_FILE s3://gevulot-test/UPLOAD_FILE'
 GEV_UPLOAD_URL=https://gevulot-test.eu-central-1.linodeobjects.com/UPLOAD_FILE
 
-RUST_LOG=trace ./target/debug/gevson -s katla -w gevulot/nilu.json -t 6 -d ./data
+RUST_LOG=trace ./target/debug/gevson -n named  -s katla -f gevulot/testwit.json -t 6 -d ./data

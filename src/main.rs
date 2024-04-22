@@ -1,4 +1,5 @@
 mod job;
+mod witness;
 
 use clap::Parser;
 use job::*;
@@ -9,6 +10,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tracing_subscriber::{filter::LevelFilter, fmt::format::FmtSpan, EnvFilter};
+use witness::WitnessSource;
 
 #[derive(Debug)]
 struct GevsonEnv {
@@ -19,9 +21,15 @@ struct GevsonEnv {
 #[derive(Parser, Debug)]
 #[clap(author = "Taiko Prover", version, about, long_about = None)]
 pub struct ArgConfiguration {
-    /// File path of witness file
+    /// Name of the witness file
     #[clap(short, long, value_parser)]
-    pub witness: String,
+    pub name: String,
+    /// Witness filepath (this, or url)
+    #[clap(short, long, value_parser)]
+    pub filepath: Option<String>,
+    /// Witness url (this, or filepath)
+    #[clap(short, long, value_parser)]
+    pub url: Option<String>,
     /// Timeout in seconds. Default is 600
     #[clap(short, long, value_parser)]
     pub timeout: Option<u64>,
@@ -54,35 +62,30 @@ fn get_env() -> GevsonEnv {
     }
 }
 
-fn parse_args() -> (ProofRequest, PathBuf) {
+fn parse_args() -> (ProofRequest, String) {
     let args: Vec<_> = std::env::args().collect();
     let arg_conf = ArgConfiguration::parse_from(&args);
+    let witness_name = arg_conf.name;
 
-    // let filename = Path::new(&arg_conf.witness)
+    let witness_path = arg_conf.filepath.unwrap();
+    // let filename = witness_path
     //     .file_name()
     //     .unwrap()
     //     .to_str()
     //     .unwrap()
     //     .to_string();
-    let witness_path = PathBuf::from(&arg_conf.witness);
-    let filename = witness_path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
     let json_url = arg_conf
         .jsonurl
         .unwrap_or("http://localhost:9944".to_string());
     let proof_path = PathBuf::from(arg_conf.proof.unwrap_or("proof.json".to_string()));
     let timeout = arg_conf.timeout.unwrap_or(600);
     let schema = arg_conf.schema;
-    let data_directory = PathBuf::from(arg_conf.datadir.unwrap_or("./".to_string()));
+    let data_directory = arg_conf.datadir.unwrap_or("./".to_string());
 
     (
         ProofRequest {
-            filename,
-            witness_path,
+            witness_name,
+            source: WitnessSource::Filepath(witness_path),
             json_url,
             proof_path,
             timeout,
@@ -103,19 +106,19 @@ fn start_logger(default_level: LevelFilter) {
         .with_span_events(FmtSpan::CLOSE)
         .with_target(true)
         .init();
-
-    // Comment above & uncomment below for tokio-console.
-    //console_subscriber::init();
 }
 
 fn run_loop(jobs: &mut Vec<Job>) {
     loop {
         tracing::trace!("loop top");
         for job in &mut *jobs {
-            match job.state {
+            let res = match job.state {
                 JobState::Pending => job.do_pending(),
                 JobState::Active => job.do_active(),
-                _ => (),
+                _ => Ok(()),
+            };
+            if res.is_err() {
+                job.state = JobState::Invalid;
             }
         }
         let mut n = 0;
