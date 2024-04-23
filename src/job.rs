@@ -4,12 +4,6 @@ use anyhow::{anyhow, Result};
 use std::process::Command;
 use std::{path::Path, time::SystemTime};
 
-#[derive(Debug, Clone)]
-pub struct GevsonEnv {
-    pub upload_cmd: Option<String>,
-    pub upload_url: Option<String>,
-}
-
 #[derive(PartialEq, Clone, Debug)]
 #[allow(dead_code)]
 pub enum JobState {
@@ -24,10 +18,10 @@ pub enum JobState {
 #[allow(dead_code)]
 pub struct Job {
     pub proof_request: ProofRequest,
-    pub data_directory: String,
-    pub gevson_env: GevsonEnv,
+    // pub data_directory: String,
+    // pub gevson_env: GevsonEnv,
     pub timestamp: u64,
-    pub json_url: String,
+    // pub json_url: String,
     pub state: JobState,
 }
 

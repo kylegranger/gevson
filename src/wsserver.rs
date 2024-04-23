@@ -1,4 +1,7 @@
+use crate::Gevson;
+use crate::ProofRequest;
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 
 use futures_util::{SinkExt, StreamExt};
 use log::*;
@@ -9,6 +12,11 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::Error as Err, WebSocketStream};
 use tungstenite::Message;
 use tungstenite::Result as Res;
+
+pub struct GevsonMsg<'a> {
+    pub msg: String,
+    pub client: &'a mut WebSocketStream<TcpStream>,
+}
 
 // use crate::args::{Args, Parser};
 // use crate::handler::handler_echo::handle_echo;
@@ -29,8 +37,8 @@ pub fn get_msg_text(msg: &Message) -> Option<&str> {
     }
 }
 
-async fn accept_connection(peer: SocketAddr, stream: TcpStream) {
-    if let Err(e) = handle_connection(peer, stream).await {
+async fn accept_connection(peer: SocketAddr, stream: TcpStream, arc_gevson: Arc<Mutex<Gevson>>) {
+    if let Err(e) = handle_connection(peer, stream, arc_gevson).await {
         match e {
             Err::ConnectionClosed | Err::Protocol(_) | Err::Utf8 => (),
             err => error!("Error processing connection: {:?}", err),
@@ -38,17 +46,18 @@ async fn accept_connection(peer: SocketAddr, stream: TcpStream) {
     }
 }
 
-async fn handle_msg(stream: &mut WebSocketStream<TcpStream>, msg: String) -> Res<()> {
-    // match event {
-    let response = "My response is this: ".to_string() + &msg;
-    // MsgIn::Echo(data) =>
-    stream.send(Message::Text(response)).await?;
-    // };
+// async fn handle_msg(stream: &mut WebSocketStream<TcpStream>, msg: String) -> Res<()> {
+//     let response = "My response is this: ".to_string() + &msg;
+//     stream.send(Message::Text(response)).await?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-async fn handle_connection(peer: SocketAddr, stream: TcpStream) -> Res<()> {
+async fn handle_connection(
+    peer: SocketAddr,
+    stream: TcpStream,
+    arc_gevson: Arc<Mutex<Gevson>>,
+) -> Res<()> {
     let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
 
     tracing::info!("New WebSocket connection: {}", peer);
@@ -56,11 +65,19 @@ async fn handle_connection(peer: SocketAddr, stream: TcpStream) -> Res<()> {
     while let Some(msg) = ws_stream.next().await {
         let msg = msg?;
 
-        // Handle msg!
         if let Some(text) = get_msg_text(&msg) {
             tracing::info!("msg text: {}", text);
-            // let event: MsgIn = from_str(text).expect("Invalid input data");
-            handle_msg(&mut ws_stream, text.to_string()).await?;
+            // handle_msg(&mut ws_stream, text.to_string()).await?;
+            let gevson_msg = GevsonMsg {
+                msg: text.to_string(),
+                client: &mut ws_stream,
+            };
+            let mut gevson: std::sync::MutexGuard<'_, Gevson> = arc_gevson.lock().unwrap();
+            gevson.requests.push(gevson_msg);
+            // ws_stream
+
+            // let response = "My response is this: ".to_string() + &text;
+            // ws_stream.send(Message::Text(response)).await?;
         }
     }
 
@@ -85,7 +102,9 @@ async fn handle_connection(peer: SocketAddr, stream: TcpStream) -> Res<()> {
 //     });
 // }
 
-pub async fn start_ws_server() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_ws_server(
+    arc_gevson: Arc<Mutex<Gevson<'_>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let addr = "127.0.0.1:3000".to_string();
 
     // Start server
@@ -99,7 +118,8 @@ pub async fn start_ws_server() -> Result<(), Box<dyn std::error::Error>> {
             .expect("connected streams should have a peer address");
         tracing::info!("Peer address: {}", peer);
 
-        tokio::spawn(accept_connection(peer, stream));
+        let gevson = arc_gevson.clone();
+        tokio::spawn(accept_connection(peer, stream, gevson));
     }
 
     Ok(())

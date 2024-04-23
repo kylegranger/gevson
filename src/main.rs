@@ -1,3 +1,4 @@
+mod gevson;
 mod job;
 mod types;
 mod witness;
@@ -6,8 +7,10 @@ mod wsserver;
 use crate::types::{ProofRequest, Prover, ProverInput, ProverSchema, ProverSource};
 use crate::wsserver::start_ws_server;
 use clap::Parser;
+use gevson::{Gevson, GevsonEnv};
 use job::*;
 use serde_json::json;
+use std::sync::{Arc, Mutex};
 use std::{
     env,
     fs::write,
@@ -71,111 +74,79 @@ fn start_logger(default_level: LevelFilter) {
         .init();
 }
 
-fn run_loop(
-    jobs: &mut Vec<Job>,
-    requests: &mut Vec<ProofRequest>,
-    data_directory: String,
-    json_url: String,
-    gevson_env: GevsonEnv,
-) {
-    loop {
-        tracing::trace!("loop top");
-        if requests.len() > 0 {
-            for request in requests {
-                let job = Job {
-                    proof_request: request.clone(),
-                    data_directory: data_directory.clone(),
-                    gevson_env: gevson_env.clone(),
-                    timestamp: SystemTime::now()
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis() as u64,
-                    json_url: json_url.clone(),
-                    state: JobState::Pending,
-                };
-                tracing::info!("add new job: {:?}", job);
-                jobs.push(job);
-            }
-            requests.clear();
-        }
+// fn run_loop(
+//     // jobs: &mut Vec<Job>,
+//     arequests: Arc<Mutex<Vec<
+// ) {
+//     let mut jobs: Vec<Job> = Vec::new();
+//     loop {
+//         tracing::trace!("loop top");
+//         let mut requests = arequests.lock().unwrap();
+//         if requests.len() > 0 {
+//             for request in requests {
+//                 let job = Job {
+//                     proof_request: request.clone(),
+//                     data_directory: data_directory.clone(),
+//                     gevson_env: gevson_env.clone(),
+//                     timestamp: SystemTime::now()
+//                         .duration_since(SystemTime::UNIX_EPOCH)
+//                         .unwrap()
+//                         .as_millis() as u64,
+//                     json_url: json_url.clone(),
+//                     state: JobState::Pending,
+//                 };
+//                 tracing::info!("add new job: {:?}", job);
+//                 jobs.push(job);
+//             }
+//             requests.clear();
+//         }
 
-        for job in &mut *jobs {
-            let res = match job.state {
-                JobState::Pending => job.do_pending(),
-                JobState::Active => job.do_active(),
-                _ => Ok(()),
-            };
-            if res.is_err() {
-                job.state = JobState::Invalid;
-            }
-        }
-        let mut n = 0;
-        for job in &mut *jobs {
-            if job.state == JobState::Complete
-                || job.state == JobState::Invalid
-                || job.state == JobState::TimedOut
-            {
-                tracing::info!("removing job");
-                jobs.remove(n);
-                break;
-            }
-            n += 1;
-        }
-        // if jobs.len() > 0 {
-        sleep(Duration::from_millis(1000));
-        // }
-        // else {
-        //     tracing::info!("done loop");
-        //     break;
-        // }
-    }
-}
+//         for job in &mut *jobs {
+//             let res = match job.state {
+//                 JobState::Pending => job.do_pending(),
+//                 JobState::Active => job.do_active(),
+//                 _ => Ok(()),
+//             };
+//             if res.is_err() {
+//                 job.state = JobState::Invalid;
+//             }
+//         }
+//         let mut n = 0;
+//         for job in &mut *jobs {
+//             if job.state == JobState::Complete
+//                 || job.state == JobState::Invalid
+//                 || job.state == JobState::TimedOut
+//             {
+//                 tracing::info!("removing job");
+//                 jobs.remove(n);
+//                 break;
+//             }
+//             n += 1;
+//         }
+//         // if jobs.len() > 0 {
+//         sleep(Duration::from_millis(1000));
+//         // }
+//         // else {
+//         //     tracing::info!("done loop");
+//         //     break;
+//         // }
+//     }
+// }
 
 #[tokio::main]
 async fn main() {
     start_logger(LevelFilter::INFO);
     let (data_directory, json_url) = parse_args();
     let gevson_env = get_env();
-    // tracing::info!("proof_request: {:?}", proof_request);
-    // tracing::info!("gevson_env: {:?}", gevson_env);
+    let gevson = Gevson::new(data_directory, json_url, gevson_env);
+    let arc_gevson = Arc::new(Mutex::new(gevson));
+    Gevson::run(arc_gevson);
 
-    // Deserialize the proof request
-    // let jrequest =  = std::fs::read_to_string(
-    //     task_options_copy.clone().witness_path.unwrap()
-    // let request =
+    // let ajobs = Arc::new(Mutex::new(Vec::<Job>::new()));
+    // let arequests = Arc::new(Mutex::new(Vec::<ProofRequest>::new()));
+    // let requests = Arc::clone(&arequests);
 
-    // let req = ProofRequest {
-    //     inputs: vec![ProverInput {
-    //         name: "witness.json".to_string(),
-    //         source: ProverSource::File("gevulot/test-witness.json".to_string()),
-    //     }],
-    //     prover: Prover {
-    //         schema: ProverSchema::Katla,
-    //         prover_hash: "b79c111360acfefd01f240c0d4942e25f855a1fd25278026ecc76730f82a75da"
-    //             .to_string(),
-    //         verifier_hash: "371d815c6ce9ba7a04bf9452207bcb2a1dcf0818c93c949a186bca8734393872"
-    //             .to_string(),
-    //     },
-    //     outputs: vec!["proof.json".to_string()],
-    //     timeout: 600,
-    // };
-    // let jreq = json!(req).to_string();
-    // write(request_path.clone(), &jreq).unwrap();
-
-    // let alt: ProofRequest = serde_json::from_str(&jreq).unwrap();
-    // println!("jreq {:?}", jreq);
-    // println!("alt {:?}", alt);
-
-    // let jrequest = std::fs::read_to_string(request_path).unwrap();
-    // let proof_request: ProofRequest = serde_json::from_str(&jrequest).unwrap();
-
-    // let timestamp = SystemTime::now()
-    //     .duration_since(SystemTime::UNIX_EPOCH)
-    //     .unwrap()
-    //     .as_millis() as u64;
-
-    let mut jobs: Vec<Job> = Vec::new();
-    let mut requests: Vec<ProofRequest> = Vec::new();
+    // let mut jobs: Vec<Job> = Vec::new();
     // jobs.push(Job {
     //     proof_request,
     //     data_directory,
@@ -186,16 +157,11 @@ async fn main() {
     //     state: JobState::Pending,
     // });
 
-    let work_thread = thread::spawn(move || {
-        run_loop(
-            &mut jobs,
-            &mut requests,
-            data_directory,
-            json_url,
-            gevson_env,
-        );
-    });
+    // let work_thread = thread::spawn(move || {
+    //     run_loop(Arc::clone(&arequests), data_directory, json_url, gevson_env);
+    // });
 
-    let _res = start_ws_server().await;
-    let _res = work_thread.join().unwrap();
+    // let requests = Arc::clone(&arequests);
+    // let _res = start_ws_server(Arc::clone(&arequests)).await;
+    // let _res = work_thread.join().unwrap();
 }
