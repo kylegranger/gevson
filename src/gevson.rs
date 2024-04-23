@@ -1,12 +1,11 @@
 use crate::job::{Job, JobState};
 use crate::types::ProofRequest;
-// use crate::wsserver::{start_ws_server, GevsonMsg};
-use std::sync::{Arc, Mutex};
 use std::{
-    thread::{self, sleep},
+    thread::sleep,
     time::{Duration, SystemTime},
 };
 
+use anyhow::{anyhow, Result};
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
 
@@ -26,7 +25,9 @@ pub struct Gevson {
     json_url: String,
     gevson_env: GevsonEnv,
     jobs: Vec<Job>,
-    pub messages: Vec<GevsonMsg>,
+    pub incoming: Vec<GevsonMsg>,
+    pub outgoing: Vec<GevsonMsg>,
+    clients: HashMap<u64, Responder>,
 }
 
 impl Gevson {
@@ -36,91 +37,119 @@ impl Gevson {
             json_url,
             gevson_env,
             jobs: Vec::new(),
-            messages: Vec::new(),
+            incoming: Vec::new(),
+            outgoing: Vec::new(),
+            clients: HashMap::new(),
         }
     }
 
-    fn run_loop(&mut self) {
-        // let mut this = arc_gevson.lock().unwrap();
-        loop {
-            tracing::trace!("loop top");
-            // let mut requests = arequests.lock().unwrap();
-            if self.messages.len() > 0 {
-                // for gm in this.messages {
-                //     let proof_request: ProofRequest = serde_json::from_str(&gm.msg).unwrap();
-                //     let job = Job {
-                //         proof_request,
-                //         // data_directory: sedata_directory.clone(),
-                //         // gevson_env: gevson_env.clone(),
-                //         timestamp: SystemTime::now()
-                //             .duration_since(SystemTime::UNIX_EPOCH)
-                //             .unwrap()
-                //             .as_millis() as u64,
-                //         // json_url: json_url.clone(),
-                //         state: JobState::Pending,
-                //     };
-                //     tracing::info!("add new job: {:?}", job);
-                //     this.jobs.push(job);
-                // }
-                self.messages.clear();
-            }
+    // fn run_loop(&mut self) {
+    //     // let mut this = arc_gevson.lock().unwrap();
+    //     loop {
+    //         // tracing::trace!("loop top");
+    //         // let mut requests = arequests.lock().unwrap();
+    //         if self.messages.len() > 0 {
+    //             // for gm in this.messages {
+    //             //     let proof_request: ProofRequest = serde_json::from_str(&gm.msg).unwrap();
+    //             //     let job = Job {
+    //             //         proof_request,
+    //             //         // data_directory: sedata_directory.clone(),
+    //             //         // gevson_env: gevson_env.clone(),
+    //             //         timestamp: SystemTime::now()
+    //             //             .duration_since(SystemTime::UNIX_EPOCH)
+    //             //             .unwrap()
+    //             //             .as_millis() as u64,
+    //             //         // json_url: json_url.clone(),
+    //             //         state: JobState::Pending,
+    //             //     };
+    //             //     tracing::info!("add new job: {:?}", job);
+    //             //     this.jobs.push(job);
+    //             // }
+    //             self.messages.clear();
+    //         }
 
-            for job in &mut *self.jobs {
-                let res = match job.state {
-                    JobState::Pending => job.do_pending(),
-                    JobState::Active => job.do_active(),
-                    _ => Ok(()),
-                };
-                if res.is_err() {
-                    job.state = JobState::Invalid;
+    //         for job in &mut *self.jobs {
+    //             let res = match job.state {
+    //                 JobState::Pending => job.do_pending(),
+    //                 JobState::Active => job.do_active(),
+    //                 _ => Ok(()),
+    //             };
+    //             if res.is_err() {
+    //                 job.state = JobState::Invalid;
+    //             }
+    //         }
+    //         let mut n = 0;
+    //         for job in &mut *self.jobs {
+    //             if job.state == JobState::Complete
+    //                 || job.state == JobState::Invalid
+    //                 || job.state == JobState::TimedOut
+    //             {
+    //                 tracing::info!("removing job");
+    //                 self.jobs.remove(n);
+    //                 break;
+    //             }
+    //             n += 1;
+    //         }
+    //         // if jobs.len() > 0 {
+    //         sleep(Duration::from_millis(100));
+    //         // }
+    //         // else {
+    //         //     tracing::info!("done loop");
+    //         //     break;
+    //         // }
+    //     }
+    // }
+
+    fn parse_proof_request(msg: &str) -> Result<ProofRequest> {
+        let proof_request: ProofRequest = serde_json::from_str(msg)?;
+        Ok(proof_request)
+    }
+
+    fn handle_incoming_messages(&mut self) {
+        if self.incoming.len() > 0 {
+            tracing::info!("we have incoming");
+            for gm in &self.incoming {
+                let res = Gevson::parse_proof_request(&gm.msg);
+                if res.is_ok() {
+                    let proof_request = res.unwrap();
+                    let job = Job {
+                        proof_request,
+                        // data_directory: sedata_directory.clone(),
+                        // gevson_env: gevson_env.clone(),
+                        timestamp: SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis() as u64,
+                        // json_url: json_url.clone(),
+                        state: JobState::Pending,
+                    };
+                    tracing::info!("add new job: {:?}", job);
+                    self.jobs.push(job);
+                } else {
+                    let response = GevsonMsg {
+                        msg: "Could not parse message as ProofRequest".to_string(),
+                        client_id: gm.client_id,
+                    };
+                    self.outgoing.push(response);
                 }
             }
-            let mut n = 0;
-            for job in &mut *self.jobs {
-                if job.state == JobState::Complete
-                    || job.state == JobState::Invalid
-                    || job.state == JobState::TimedOut
-                {
-                    tracing::info!("removing job");
-                    self.jobs.remove(n);
-                    break;
-                }
-                n += 1;
-            }
-            // if jobs.len() > 0 {
-            sleep(Duration::from_millis(1000));
-            // }
-            // else {
-            //     tracing::info!("done loop");
-            //     break;
-            // }
+            self.incoming.clear();
         }
     }
 
+    fn handle_outgoing_messages(&mut self) {
+        if self.outgoing.len() > 0 {
+            tracing::info!("we have outgoing");
+            for gm in &self.outgoing {
+                let responder = self.clients.get(&gm.client_id).unwrap();
+                responder.send(Message::Text(gm.msg.clone()));
+            }
+            self.outgoing.clear();
+        }
+    }
     fn loop_task(&mut self) {
-        // let mut this = arc_gevson.lock().unwrap();
-        // loop {
-        tracing::trace!("loop top");
-        // let mut requests = arequests.lock().unwrap();
-        if self.messages.len() > 0 {
-            // for gm in this.messages {
-            //     let proof_request: ProofRequest = serde_json::from_str(&gm.msg).unwrap();
-            //     let job = Job {
-            //         proof_request,
-            //         // data_directory: sedata_directory.clone(),
-            //         // gevson_env: gevson_env.clone(),
-            //         timestamp: SystemTime::now()
-            //             .duration_since(SystemTime::UNIX_EPOCH)
-            //             .unwrap()
-            //             .as_millis() as u64,
-            //         // json_url: json_url.clone(),
-            //         state: JobState::Pending,
-            //     };
-            //     tracing::info!("add new job: {:?}", job);
-            //     this.jobs.push(job);
-            // }
-            self.messages.clear();
-        }
+        self.handle_incoming_messages();
+        self.handle_outgoing_messages();
 
         for job in &mut *self.jobs {
             let res = match job.state {
@@ -144,88 +173,37 @@ impl Gevson {
             }
             n += 1;
         }
-        // if jobs.len() > 0 {
-        sleep(Duration::from_millis(1000));
-        // }
-        // else {
-        //     tracing::info!("done loop");
-        //     break;
-        // }
-        // }
+        sleep(Duration::from_millis(100));
     }
 
-    // pub async fn start_ws_server(
-    //     arequests: Arc<Mutex<Vec<ProofRequest>>>,
-    // ) -> Result<(), Box<dyn std::error::Error>> {
-    //     let addr = "127.0.0.1:3000".to_string();
-
-    //     // Start server
-    //     let listener = TcpListener::bind(&addr).await.expect("Can't listen");
-    //     tracing::info!("Listening on: {}", addr);
-
-    //     // Handle connections
-    //     while let Ok((stream, _)) = listener.accept().await {
-    //         let peer = stream
-    //             .peer_addr()
-    //             .expect("connected streams should have a peer address");
-    //         tracing::info!("Peer address: {}", peer);
-
-    //         tokio::spawn(accept_connection(peer, stream, Arc::clone(&arequests)));
-    //     }
-
-    //     Ok(())
-    // }
-
-    pub fn run(data_directory: String, json_url: String, gevson_env: GevsonEnv) {
-        let mut gevson = Gevson::new(data_directory, json_url, gevson_env);
-
-        // let this = arc_gevson.clone();
-        tracing::info!("run lola run");
-        // let arc_gevson = Arc::new(Mutex::new(gevson));
-        // let work_thread = thread::spawn(move || {
-        //     // let mut this = arc_gevson.lock().unwrap();
-        //     Gevson::run_loop(&mut gevson);
-        // });
-        // let this = arc_gevson.clone();
-        // let work_thread = thread::spawn(move || {
-        //     Gevson::run_loop(this);
-        // });
-
-        // let _res = start_ws_server(this).await;
-
-        // listen for WebSockets on port 8080:
-        tracing::info!("start ws");
+    pub fn run(&mut self) {
         let event_hub = simple_websockets::launch(8080).expect("failed to listen on port 8080");
-        // map between client ids and the client's `Responder`:
-        let mut clients: HashMap<u64, Responder> = HashMap::new();
-        tracing::info!("started ws seever");
-
         loop {
-            tracing::info!("top loop");
             if !event_hub.is_empty() {
-                tracing::info!("not empty");
                 match event_hub.poll_event() {
                     Event::Connect(client_id, responder) => {
-                        println!("A client connected with id #{}", client_id);
+                        tracing::info!("A client connected with id #{}", client_id);
                         // add their Responder to our `clients` map:
-                        clients.insert(client_id, responder);
+                        self.clients.insert(client_id, responder);
                     }
                     Event::Disconnect(client_id) => {
-                        println!("Client #{} disconnected.", client_id);
+                        tracing::info!("Client #{} disconnected.", client_id);
                         // remove the disconnected client from the clients map:
-                        clients.remove(&client_id);
+                        self.clients.remove(&client_id);
                     }
                     Event::Message(client_id, message) => {
-                        println!(
+                        tracing::info!(
                             "Received a message from client #{}: {:?}",
-                            client_id, message
+                            client_id,
+                            message
                         );
                         let msg: String = match message {
                             Message::Text(text) => text,
                             _ => "unhandled binary".to_string(),
                         };
-                        let gevson_msg = GevsonMsg { msg, client_id };
-                        gevson.messages.push(gevson_msg);
+                        let request = GevsonMsg { msg, client_id };
+                        tracing::info!("adding new request");
+                        self.incoming.push(request);
                         // retrieve this client's `Responder`:
                         // let responder = clients.get(&client_id).unwrap();
                         // // echo the message back:
@@ -233,8 +211,7 @@ impl Gevson {
                     }
                 }
             }
-            gevson.loop_task();
+            self.loop_task();
         }
-        // tracing::info!("done run");
     }
 }
