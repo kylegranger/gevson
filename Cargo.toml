@@ -17,3 +17,15 @@ hex = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing = "0.1"
 anyhow = "1.0.71"
+
+tokio-tungstenite = "*"
+tokio = { version = "*", features = ["io-std", "macros", "net", "rt-multi-thread", "time"] }
+futures-util = { version = "*", features = ["sink", "std"] }
+url = "*"
+futures-channel = "*"
+serde_with = { version = "*", features = ["json"] }
+time = { version = "*", features = ["formatting"] }
+uuid = { version = "*", features = ["v4"] }
+log = "*"
+tungstenite = "*"
+env_logger = "*"

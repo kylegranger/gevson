@@ -1,41 +1,29 @@
 mod job;
+mod types;
 mod witness;
+mod wsserver;
 
+use crate::types::{ProofRequest, Prover, ProverInput, ProverSchema, ProverSource};
+use crate::wsserver::start_ws_server;
 use clap::Parser;
 use job::*;
+use serde_json::json;
 use std::{
     env,
+    fs::write,
     path::PathBuf,
     thread::{self, sleep},
     time::{Duration, SystemTime},
 };
 use tracing_subscriber::{filter::LevelFilter, fmt::format::FmtSpan, EnvFilter};
-use witness::WitnessSource;
+// use witness::WitnessSource;
 
 #[derive(Parser, Debug)]
 #[clap(author = "Taiko Prover", version, about, long_about = None)]
 pub struct ArgConfiguration {
-    /// Name of the witness file
-    #[clap(short, long, value_parser)]
-    pub name: String,
-    /// Witness filepath (this, or url)
-    #[clap(short, long, value_parser)]
-    pub filepath: Option<String>,
-    /// Witness url (this, or filepath)
-    #[clap(short, long, value_parser)]
-    pub url: Option<String>,
-    /// Timeout in seconds. Default is 600
-    #[clap(short, long, value_parser)]
-    pub timeout: Option<u64>,
     /// RPC url of the Gevulot node [default: http://localhost:9944]
     #[clap(short, long, value_parser)]
     pub jsonurl: Option<String>,
-    /// Path of output proof [default: proof.json]
-    #[clap(short, long, value_parser)]
-    pub proof: Option<String>,
-    /// katla | mock | polygon | sp1
-    #[clap(short, long, value_parser)]
-    pub schema: ProverSchema,
     /// Data directory to store downloaded files [default: ./ ]
     #[clap(short, long, value_parser)]
     pub datadir: Option<String>,
@@ -58,39 +46,16 @@ fn get_env() -> GevsonEnv {
     }
 }
 
-fn parse_args() -> (ProofRequest, String) {
+fn parse_args() -> (String, String) {
     let args: Vec<_> = std::env::args().collect();
     let arg_conf = ArgConfiguration::parse_from(&args);
-    let witness_name = arg_conf.name;
 
-    // let witness_path = arg_conf.filepath;
-    let witness_url = arg_conf.url.unwrap();
-
-    // let filename = witness_path
-    //     .file_name()
-    //     .unwrap()
-    //     .to_str()
-    //     .unwrap()
-    //     .to_string();
+    let data_directory = arg_conf.datadir.unwrap_or("./".to_string());
     let json_url = arg_conf
         .jsonurl
         .unwrap_or("http://localhost:9944".to_string());
-    let proof_path = PathBuf::from(arg_conf.proof.unwrap_or("proof.json".to_string()));
-    let timeout = arg_conf.timeout.unwrap_or(600);
-    let schema = arg_conf.schema;
-    let data_directory = arg_conf.datadir.unwrap_or("./".to_string());
 
-    (
-        ProofRequest {
-            witness_name,
-            source: WitnessSource::Url(witness_url),
-            json_url,
-            proof_path,
-            timeout,
-            schema,
-        },
-        data_directory,
-    )
+    (data_directory, json_url)
 }
 
 fn start_logger(default_level: LevelFilter) {
@@ -106,9 +71,34 @@ fn start_logger(default_level: LevelFilter) {
         .init();
 }
 
-fn run_loop(jobs: &mut Vec<Job>) {
+fn run_loop(
+    jobs: &mut Vec<Job>,
+    requests: &mut Vec<ProofRequest>,
+    data_directory: String,
+    json_url: String,
+    gevson_env: GevsonEnv,
+) {
     loop {
         tracing::trace!("loop top");
+        if requests.len() > 0 {
+            for request in requests {
+                let job = Job {
+                    proof_request: request.clone(),
+                    data_directory: data_directory.clone(),
+                    gevson_env: gevson_env.clone(),
+                    timestamp: SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as u64,
+                    json_url: json_url.clone(),
+                    state: JobState::Pending,
+                };
+                tracing::info!("add new job: {:?}", job);
+                jobs.push(job);
+            }
+            requests.clear();
+        }
+
         for job in &mut *jobs {
             let res = match job.state {
                 JobState::Pending => job.do_pending(),
@@ -131,40 +121,81 @@ fn run_loop(jobs: &mut Vec<Job>) {
             }
             n += 1;
         }
-        if jobs.len() > 0 {
-            sleep(Duration::from_millis(1000));
-        } else {
-            tracing::info!("done loop");
-            break;
-        }
+        // if jobs.len() > 0 {
+        sleep(Duration::from_millis(1000));
+        // }
+        // else {
+        //     tracing::info!("done loop");
+        //     break;
+        // }
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     start_logger(LevelFilter::INFO);
-    let (proof_request, data_directory) = parse_args();
+    let (data_directory, json_url) = parse_args();
     let gevson_env = get_env();
-    tracing::info!("proof_request: {:?}", proof_request);
-    tracing::info!("gevson_env: {:?}", gevson_env);
+    // tracing::info!("proof_request: {:?}", proof_request);
+    // tracing::info!("gevson_env: {:?}", gevson_env);
 
-    let timestamp = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
+    // Deserialize the proof request
+    // let jrequest =  = std::fs::read_to_string(
+    //     task_options_copy.clone().witness_path.unwrap()
+    // let request =
+
+    // let req = ProofRequest {
+    //     inputs: vec![ProverInput {
+    //         name: "witness.json".to_string(),
+    //         source: ProverSource::File("gevulot/test-witness.json".to_string()),
+    //     }],
+    //     prover: Prover {
+    //         schema: ProverSchema::Katla,
+    //         prover_hash: "b79c111360acfefd01f240c0d4942e25f855a1fd25278026ecc76730f82a75da"
+    //             .to_string(),
+    //         verifier_hash: "371d815c6ce9ba7a04bf9452207bcb2a1dcf0818c93c949a186bca8734393872"
+    //             .to_string(),
+    //     },
+    //     outputs: vec!["proof.json".to_string()],
+    //     timeout: 600,
+    // };
+    // let jreq = json!(req).to_string();
+    // write(request_path.clone(), &jreq).unwrap();
+
+    // let alt: ProofRequest = serde_json::from_str(&jreq).unwrap();
+    // println!("jreq {:?}", jreq);
+    // println!("alt {:?}", alt);
+
+    // let jrequest = std::fs::read_to_string(request_path).unwrap();
+    // let proof_request: ProofRequest = serde_json::from_str(&jrequest).unwrap();
+
+    // let timestamp = SystemTime::now()
+    //     .duration_since(SystemTime::UNIX_EPOCH)
+    //     .unwrap()
+    //     .as_millis() as u64;
 
     let mut jobs: Vec<Job> = Vec::new();
-    jobs.push(Job {
-        proof_request,
-        data_directory,
-        gevson_env,
-        timestamp,
-        txhash: None,
-        state: JobState::Pending,
-    });
+    let mut requests: Vec<ProofRequest> = Vec::new();
+    // jobs.push(Job {
+    //     proof_request,
+    //     data_directory,
+    //     gevson_env,
+    //     timestamp,
+    //     json_url,
+    //     // txhash: None,
+    //     state: JobState::Pending,
+    // });
 
     let work_thread = thread::spawn(move || {
-        run_loop(&mut jobs);
+        run_loop(
+            &mut jobs,
+            &mut requests,
+            data_directory,
+            json_url,
+            gevson_env,
+        );
     });
 
-    let _result = work_thread.join().unwrap();
+    let _res = start_ws_server().await;
+    let _res = work_thread.join().unwrap();
 }

@@ -1,49 +1,40 @@
+use crate::types::{ProofRequest, ProverInput, ProverSource};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Clone, Debug)]
 pub struct Witness {
-    pub filename: String,
-    pub data: Vec<u8>,
-    pub hash: Option<String>,
-    pub url: Option<String>,
-}
-
-#[derive(Clone, Debug)]
-pub enum WitnessSource {
-    Url(String),
-    Filepath(String),
-    Data(Vec<u8>),
+    inputs: Vec<ProverInput>,
+    hash: Option<String>,
+    url: Option<String>,
 }
 
 impl Witness {
-    pub fn new(filename: String) -> Self {
+    pub fn new(inputs: Vec<ProverInput>) -> Self {
         Self {
-            data: Vec::new(),
-            filename,
+            inputs,
             hash: None,
             url: None,
         }
     }
 
-    pub fn init(&mut self, source: WitnessSource) -> Result<()> {
-        match source {
-            WitnessSource::Url(url) => {
-                todo!()
-            }
-            WitnessSource::Data(data) => {
-                self.data = data;
-            }
-            WitnessSource::Filepath(filepath) => {
-                let filepath = PathBuf::from(filepath);
-                let s = fs::read_to_string(filepath)?;
-                tracing::info!("string from file length {}", s.len());
-                self.data = s.as_bytes().to_vec();
-            }
-            _ => (),
-        }
-        tracing::info!("witness data length {}", self.data.len());
+    pub fn init(&mut self) -> Result<()> {
+        // match self.inputs.source {
+        //     InputsSource::Url(_url) => {
+        //         todo!()
+        //     }
+        //     InputsSource::Data(data) => {
+        //         self.data = data.as_bytes().to_vec();
+        //     }
+        //     InputsSource::File(filepath) => {
+        //         let filepath = PathBuf::from(filepath);
+        //         let s = fs::read_to_string(filepath)?;
+        //         tracing::info!("string from file length {}", s.len());
+        //         self.data = s.as_bytes().to_vec();
+        //     }
+        // }
+        // tracing::info!("witness data length {}", self.data.len());
         Ok(())
     }
 }
