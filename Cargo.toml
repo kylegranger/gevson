@@ -17,6 +17,7 @@ hex = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing = "0.1"
 anyhow = "1.0.71"
+simple-websockets = "0.1.6"
 
 tokio-tungstenite = "*"
 tokio = { version = "*", features = ["io-std", "macros", "net", "rt-multi-thread", "time"] }

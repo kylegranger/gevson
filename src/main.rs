@@ -2,7 +2,7 @@ mod gevson;
 mod job;
 mod types;
 mod witness;
-mod wsserver;
+// mod wsserver;
 
 // use crate::types::{ProofRequest, Prover, ProverInput, ProverSchema, ProverSource};
 // use crate::wsserver::start_ws_server;
@@ -133,14 +133,15 @@ fn start_logger(default_level: LevelFilter) {
 //     }
 // }
 
-#[tokio::main]
-async fn main() {
+// #[tokio::main]
+fn main() {
     start_logger(LevelFilter::INFO);
     let (data_directory, json_url) = parse_args();
     let gevson_env = get_env();
-    let gevson = Gevson::new(data_directory, json_url, gevson_env);
-    let arc_gevson = Arc::new(Mutex::new(gevson));
-    Gevson::run(arc_gevson);
+    // let mut gevson = Gevson::new(data_directory, json_url, gevson_env);
+    tracing::info!("ahsdf");
+    // let arc_gevson = Arc::new(Mutex::new(gevson));
+    Gevson::run(data_directory, json_url, gevson_env);
 
     // let ajobs = Arc::new(Mutex::new(Vec::<Job>::new()));
     // let arequests = Arc::new(Mutex::new(Vec::<ProofRequest>::new()));

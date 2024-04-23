@@ -67,7 +67,7 @@ async fn handle_connection(
 
         if let Some(text) = get_msg_text(&msg) {
             tracing::info!("msg text: {}", text);
-            let copy = ws_stream.clone();
+            // let copy = ws_stream.clone();
             // handle_msg(&mut ws_stream, text.to_string()).await?;
             // let handler = |response| async {
             //     let stream = ws_stream;
