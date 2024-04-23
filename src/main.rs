@@ -4,19 +4,19 @@ mod types;
 mod witness;
 mod wsserver;
 
-use crate::types::{ProofRequest, Prover, ProverInput, ProverSchema, ProverSource};
-use crate::wsserver::start_ws_server;
+// use crate::types::{ProofRequest, Prover, ProverInput, ProverSchema, ProverSource};
+// use crate::wsserver::start_ws_server;
 use clap::Parser;
 use gevson::{Gevson, GevsonEnv};
-use job::*;
-use serde_json::json;
+// use job::*;
+// use serde_json::json;
 use std::sync::{Arc, Mutex};
 use std::{
     env,
-    fs::write,
-    path::PathBuf,
-    thread::{self, sleep},
-    time::{Duration, SystemTime},
+    // fs::write,
+    // path::PathBuf,
+    // thread::{self, sleep},
+    // time::{Duration, SystemTime},
 };
 use tracing_subscriber::{filter::LevelFilter, fmt::format::FmtSpan, EnvFilter};
 // use witness::WitnessSource;

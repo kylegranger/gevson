@@ -3,9 +3,6 @@ use crate::types::ProofRequest;
 use crate::wsserver::{start_ws_server, GevsonMsg};
 use std::sync::{Arc, Mutex};
 use std::{
-    env,
-    fs::write,
-    path::PathBuf,
     thread::{self, sleep},
     time::{Duration, SystemTime},
 };
@@ -16,15 +13,15 @@ pub struct GevsonEnv {
     pub upload_url: Option<String>,
 }
 
-pub struct Gevson<'a> {
+pub struct Gevson {
     data_directory: String,
     json_url: String,
     gevson_env: GevsonEnv,
     jobs: Vec<Job>,
-    messages: Vec<&'a GevsonMsg<'a>>,
+    pub messages: Vec<GevsonMsg>,
 }
 
-impl<'a> Gevson<'a> {
+impl Gevson {
     pub fn new(data_directory: String, json_url: String, gevson_env: GevsonEnv) -> Self {
         Self {
             data_directory,
@@ -41,22 +38,22 @@ impl<'a> Gevson<'a> {
             tracing::trace!("loop top");
             // let mut requests = arequests.lock().unwrap();
             if this.messages.len() > 0 {
-                for gm in this.messages {
-                    let proof_request: ProofRequest = serde_json::from_str(&gm.msg).unwrap();
-                    let job = Job {
-                        proof_request,
-                        // data_directory: sedata_directory.clone(),
-                        // gevson_env: gevson_env.clone(),
-                        timestamp: SystemTime::now()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis() as u64,
-                        // json_url: json_url.clone(),
-                        state: JobState::Pending,
-                    };
-                    tracing::info!("add new job: {:?}", job);
-                    this.jobs.push(job);
-                }
+                // for gm in this.messages {
+                //     let proof_request: ProofRequest = serde_json::from_str(&gm.msg).unwrap();
+                //     let job = Job {
+                //         proof_request,
+                //         // data_directory: sedata_directory.clone(),
+                //         // gevson_env: gevson_env.clone(),
+                //         timestamp: SystemTime::now()
+                //             .duration_since(SystemTime::UNIX_EPOCH)
+                //             .unwrap()
+                //             .as_millis() as u64,
+                //         // json_url: json_url.clone(),
+                //         state: JobState::Pending,
+                //     };
+                //     tracing::info!("add new job: {:?}", job);
+                //     this.jobs.push(job);
+                // }
                 this.messages.clear();
             }
 
@@ -114,7 +111,7 @@ impl<'a> Gevson<'a> {
     //     Ok(())
     // }
 
-    pub async fn run(arc_gevson: Arc<Mutex<Gevson<'a>>>) {
+    pub async fn run(arc_gevson: Arc<Mutex<Gevson>>) {
         let this = arc_gevson.clone();
         let work_thread = thread::spawn(move || {
             Gevson::run_loop(this);
@@ -124,6 +121,6 @@ impl<'a> Gevson<'a> {
         //     Gevson::run_loop(this);
         // });
 
-        let _res = start_ws_server(this).await;
+        // let _res = start_ws_server(this).await;
     }
 }

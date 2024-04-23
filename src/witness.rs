@@ -1,8 +1,8 @@
-use crate::types::{ProofRequest, ProverInput, ProverSource};
+use crate::types::ProverInput;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
+// use serde::{Deserialize, Serialize};
+// use std::fs;
+// use std::path::PathBuf;
 
 pub struct Witness {
     inputs: Vec<ProverInput>,

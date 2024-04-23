@@ -1,21 +1,21 @@
 use crate::Gevson;
-use crate::ProofRequest;
+// use crate::ProofRequest;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use futures_util::{SinkExt, StreamExt};
 use log::*;
-use serde::Serialize;
-use serde_json::from_str;
+// use serde::Serialize;
+// use serde_json::from_str;
 use std::thread;
 use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::{accept_async, tungstenite::Error as Err, WebSocketStream};
+use tokio_tungstenite::{accept_async, tungstenite::Error as Err};
 use tungstenite::Message;
 use tungstenite::Result as Res;
 
-pub struct GevsonMsg<'a> {
+pub struct GevsonMsg {
     pub msg: String,
-    pub client: &'a mut WebSocketStream<TcpStream>,
+    // pub callback: Box<dyn Fn(String)>,
 }
 
 // use crate::args::{Args, Parser};
@@ -67,13 +67,20 @@ async fn handle_connection(
 
         if let Some(text) = get_msg_text(&msg) {
             tracing::info!("msg text: {}", text);
+            let copy = ws_stream.clone();
             // handle_msg(&mut ws_stream, text.to_string()).await?;
-            let gevson_msg = GevsonMsg {
-                msg: text.to_string(),
-                client: &mut ws_stream,
-            };
-            let mut gevson: std::sync::MutexGuard<'_, Gevson> = arc_gevson.lock().unwrap();
-            gevson.requests.push(gevson_msg);
+            // let handler = |response| async {
+            //     let stream = ws_stream;
+            //     stream.send(Message::Text(response)).await;
+            // };
+
+            // let gevson_msg = GevsonMsg {
+            //     msg: text.to_string(),
+            //     callback: handler,
+            // };
+            // let mut gevson: std::sync::MutexGuard<'_, Gevson> = arc_gevson.lock().unwrap();
+            // gevson.messages.push(gevson_msg);
+
             // ws_stream
 
             // let response = "My response is this: ".to_string() + &text;
@@ -103,7 +110,7 @@ async fn handle_connection(
 // }
 
 pub async fn start_ws_server(
-    arc_gevson: Arc<Mutex<Gevson<'_>>>,
+    arc_gevson: Arc<Mutex<Gevson>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let addr = "127.0.0.1:3000".to_string();
 
@@ -119,7 +126,11 @@ pub async fn start_ws_server(
         tracing::info!("Peer address: {}", peer);
 
         let gevson = arc_gevson.clone();
-        tokio::spawn(accept_connection(peer, stream, gevson));
+        // tokio::spawn(accept_connection(peer, stream, gevson));
+
+        let work_thread = thread::spawn(move || {
+            accept_connection(peer, stream, gevson);
+        });
     }
 
     Ok(())

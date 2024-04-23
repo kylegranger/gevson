@@ -76,24 +76,25 @@ impl Job {
     }
     fn upload_file(&mut self, localfile: &String) -> Result<String> {
         // let
-        if self.gevson_env.upload_cmd.is_none() {
-            tracing::warn!("No upload command template string");
-            return Err(anyhow!("No upload command template string"));
-        }
-        if self.gevson_env.upload_url.is_none() {
-            tracing::warn!("No upload url template string");
-            return Err(anyhow!("No upload url template string"));
-        }
-        let mut cmd = self.gevson_env.upload_cmd.as_ref().unwrap().clone();
-        let mut url = self.gevson_env.upload_url.as_ref().unwrap().clone();
-        cmd = cmd.replace("UPLOAD_PATH", localfile);
-        cmd = cmd.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
-        url = url.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
-        tracing::info!("new upload cmd: {}", cmd);
-        tracing::info!("new upload url: {}", url);
-        _ = system_command(cmd)?;
+        // if self.gevson_env.upload_cmd.is_none() {
+        //     tracing::warn!("No upload command template string");
+        //     return Err(anyhow!("No upload command template string"));
+        // }
+        // if self.gevson_env.upload_url.is_none() {
+        //     tracing::warn!("No upload url template string");
+        //     return Err(anyhow!("No upload url template string"));
+        // }
+        // let mut cmd = self.gevson_env.upload_cmd.as_ref().unwrap().clone();
+        // let mut url = self.gevson_env.upload_url.as_ref().unwrap().clone();
+        // cmd = cmd.replace("UPLOAD_PATH", localfile);
+        // cmd = cmd.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
+        // url = url.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
+        // tracing::info!("new upload cmd: {}", cmd);
+        // tracing::info!("new upload url: {}", url);
+        // _ = system_command(cmd)?;
 
-        Ok(url)
+        // Ok(url)
+        Ok("url".to_string())
     }
 
     pub fn do_pending(&mut self) -> Result<()> {
