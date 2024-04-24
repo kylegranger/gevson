@@ -66,7 +66,7 @@ impl Job {
         self.timestamp + self.proof_request.timeout * 1000 < now
     }
 
-    pub fn do_active(&mut self) -> Result<()> {
+    pub fn handle_active(&mut self) -> Result<()> {
         if self.is_timed_out() {
             tracing::info!("job timed out");
             self.state = JobState::TimedOut;
@@ -96,8 +96,8 @@ impl Job {
         Ok(url)
     }
 
-    pub fn do_pending(&mut self, data_directory: &str, gevson_env: &GevsonEnv) -> Result<()> {
-        tracing::info!("job: do_pending: {:?}", self);
+    pub fn handle_pending(&mut self, data_directory: &str, gevson_env: &GevsonEnv) -> Result<()> {
+        tracing::info!("job: handle_pending: {:?}", self);
 
         // create our witness
         let mut witness = Witness::new(self.proof_request.inputs.clone());

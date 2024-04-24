@@ -1,13 +1,12 @@
 use crate::job::{Job, JobState};
 use crate::types::{ProofRequest, Response, ResponseType};
+use anyhow::Result;
+use simple_websockets::{Event, Message, Responder};
+use std::collections::HashMap;
 use std::{
     thread::sleep,
     time::{Duration, SystemTime},
 };
-
-use anyhow::Result;
-use simple_websockets::{Event, Message, Responder};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct GevsonEnv {
@@ -98,8 +97,8 @@ impl Gevson {
 
         for job in &mut *self.jobs {
             let res = match job.state {
-                JobState::Pending => job.do_pending(&self.data_directory, &self.gevson_env),
-                JobState::Active => job.do_active(),
+                JobState::Pending => job.handle_pending(&self.data_directory, &self.gevson_env),
+                JobState::Active => job.handle_active(),
                 _ => Ok(()),
             };
             if res.is_err() {
