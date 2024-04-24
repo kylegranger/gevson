@@ -98,7 +98,7 @@ impl Gevson {
 
         for job in &mut *self.jobs {
             let res = match job.state {
-                JobState::Pending => job.do_pending(&self.data_directory),
+                JobState::Pending => job.do_pending(&self.data_directory, &self.gevson_env),
                 JobState::Active => job.do_active(),
                 _ => Ok(()),
             };

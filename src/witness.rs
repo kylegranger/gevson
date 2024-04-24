@@ -5,9 +5,9 @@ use std::{fs, fs::File, io::copy};
 
 #[allow(dead_code)]
 pub struct Witness {
-    inputs: Vec<ProverInput>,
-    hash: Option<String>,
-    url: Option<String>,
+    pub inputs: Vec<ProverInput>,
+    pub hash: Option<String>,
+    pub url: Option<String>,
 }
 
 impl Witness {

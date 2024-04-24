@@ -1,4 +1,3 @@
-mod hash;
 mod proofrequest;
 mod response;
 pub use proofrequest::{DataSource, ProofRequest, ProverInput};

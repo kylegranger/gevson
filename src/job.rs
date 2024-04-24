@@ -1,6 +1,8 @@
-use crate::types::ProofRequest;
+use crate::gevson::GevsonEnv;
+use crate::types::{DataSource, ProofRequest};
 use crate::witness::Witness;
 use anyhow::{anyhow, Result};
+use std::path::PathBuf;
 use std::process::Command;
 use std::{path::Path, time::SystemTime};
 
@@ -66,36 +68,35 @@ impl Job {
 
     pub fn do_active(&mut self) -> Result<()> {
         if self.is_timed_out() {
-            tracing::info!("  job timed out");
+            tracing::info!("job timed out");
             self.state = JobState::TimedOut;
         }
         Ok(())
     }
     #[allow(dead_code)]
-    fn upload_file(&mut self, _localfile: &String) -> Result<String> {
-        // let
-        // if self.gevson_env.upload_cmd.is_none() {
-        //     tracing::warn!("No upload command template string");
-        //     return Err(anyhow!("No upload command template string"));
-        // }
-        // if self.gevson_env.upload_url.is_none() {
-        //     tracing::warn!("No upload url template string");
-        //     return Err(anyhow!("No upload url template string"));
-        // }
-        // let mut cmd = self.gevson_env.upload_cmd.as_ref().unwrap().clone();
-        // let mut url = self.gevson_env.upload_url.as_ref().unwrap().clone();
-        // cmd = cmd.replace("UPLOAD_PATH", localfile);
-        // cmd = cmd.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
-        // url = url.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
-        // tracing::info!("new upload cmd: {}", cmd);
-        // tracing::info!("new upload url: {}", url);
-        // _ = system_command(cmd)?;
+    fn upload_file(&mut self, localfile: &PathBuf, gevson_env: &GevsonEnv) -> Result<String> {
+        if gevson_env.upload_cmd.is_none() {
+            tracing::warn!("No upload command template string");
+            return Err(anyhow!("No upload command template string"));
+        }
+        if gevson_env.upload_url.is_none() {
+            tracing::warn!("No upload url template string");
+            return Err(anyhow!("No upload url template string"));
+        }
+        let mut cmd = gevson_env.upload_cmd.as_ref().unwrap().clone();
+        let mut url = gevson_env.upload_url.as_ref().unwrap().clone();
+        cmd = cmd.replace("UPLOAD_PATH", localfile.to_str().unwrap());
+        cmd = cmd.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
+        url = url.replace("UPLOAD_FILE", &self.proof_request.inputs[0].name);
+        tracing::info!("new upload cmd: {}", cmd);
+        tracing::info!("new upload url: {}", url);
+        let result = system_command(cmd)?;
+        tracing::info!("upload_file system command result: {:?}", result);
 
-        // Ok(url)
-        Ok("url".to_string())
+        Ok(url)
     }
 
-    pub fn do_pending(&mut self, data_directory: &str) -> Result<()> {
+    pub fn do_pending(&mut self, data_directory: &str, gevson_env: &GevsonEnv) -> Result<()> {
         tracing::info!("job: do_pending: {:?}", self);
 
         // create our witness
@@ -103,25 +104,20 @@ impl Job {
 
         // If Url, Blob, or Text source, create local file
         // otherwise, use file passed in
-        let _localpath = witness.init_local_file(data_directory)?;
+        let localpath = witness.init_local_file(data_directory)?;
 
-        // // write the file and get checksum
-        // let localfile = format!("{}/{}", self.data_directory, witness.filename);
-        // let localpath = Path::new(&localfile);
+        // get checksm/hash
+        let hash = extract_hash_from_file_content(&localpath)?;
+        tracing::info!("hash returned: {:?}", hash);
 
-        // // let localpath = Path::new(&localpath);
-        // fs::write(localpath, witness.data)?;
-        // let hash = extract_hash_from_file_content(Path::new(localpath))?;
-        // tracing::info!("hash returned: {:?}", hash);
+        // if source is not url, upload file
+        let url = match witness.inputs[0].source.clone() {
+            DataSource::Url(url) => Ok(url),
+            _ => self.upload_file(&localpath, gevson_env),
+        }?;
 
-        // // if source is not url, upload file
-        // let url = match self.proof_request.source.clone() {
-        //     WitnessSource::Url(url) => Ok(url),
-        //     _ => self.upload_file(&localfile),
-        // }?;
-
-        // tracing::info!("final witness url: {}", url);
-        // tracing::info!("set job to active");
+        tracing::info!("witness url: {}", url);
+        tracing::info!("set job to active");
         self.state = JobState::Active;
         Ok(())
     }
