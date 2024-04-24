@@ -23,6 +23,7 @@ pub struct Job {
     pub timestamp: u64,
     // pub json_url: String,
     pub state: JobState,
+    pub client_id: u64,
 }
 
 pub fn system_command(cmd: String) -> Result<()> {
@@ -67,7 +68,6 @@ impl Job {
     }
 
     pub fn do_active(&mut self) -> Result<()> {
-        tracing::trace!("job: do_active");
         if self.timed_out() {
             tracing::info!("  job timed out");
             self.state = JobState::TimedOut;

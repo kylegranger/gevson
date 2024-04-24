@@ -1,5 +1,5 @@
 use crate::job::{Job, JobState};
-use crate::types::ProofRequest;
+use crate::types::{ProofRequest, Response, ResponseType};
 use std::{
     thread::sleep,
     time::{Duration, SystemTime},
@@ -43,63 +43,6 @@ impl Gevson {
         }
     }
 
-    // fn run_loop(&mut self) {
-    //     // let mut this = arc_gevson.lock().unwrap();
-    //     loop {
-    //         // tracing::trace!("loop top");
-    //         // let mut requests = arequests.lock().unwrap();
-    //         if self.messages.len() > 0 {
-    //             // for gm in this.messages {
-    //             //     let proof_request: ProofRequest = serde_json::from_str(&gm.msg).unwrap();
-    //             //     let job = Job {
-    //             //         proof_request,
-    //             //         // data_directory: sedata_directory.clone(),
-    //             //         // gevson_env: gevson_env.clone(),
-    //             //         timestamp: SystemTime::now()
-    //             //             .duration_since(SystemTime::UNIX_EPOCH)
-    //             //             .unwrap()
-    //             //             .as_millis() as u64,
-    //             //         // json_url: json_url.clone(),
-    //             //         state: JobState::Pending,
-    //             //     };
-    //             //     tracing::info!("add new job: {:?}", job);
-    //             //     this.jobs.push(job);
-    //             // }
-    //             self.messages.clear();
-    //         }
-
-    //         for job in &mut *self.jobs {
-    //             let res = match job.state {
-    //                 JobState::Pending => job.do_pending(),
-    //                 JobState::Active => job.do_active(),
-    //                 _ => Ok(()),
-    //             };
-    //             if res.is_err() {
-    //                 job.state = JobState::Invalid;
-    //             }
-    //         }
-    //         let mut n = 0;
-    //         for job in &mut *self.jobs {
-    //             if job.state == JobState::Complete
-    //                 || job.state == JobState::Invalid
-    //                 || job.state == JobState::TimedOut
-    //             {
-    //                 tracing::info!("removing job");
-    //                 self.jobs.remove(n);
-    //                 break;
-    //             }
-    //             n += 1;
-    //         }
-    //         // if jobs.len() > 0 {
-    //         sleep(Duration::from_millis(100));
-    //         // }
-    //         // else {
-    //         //     tracing::info!("done loop");
-    //         //     break;
-    //         // }
-    //     }
-    // }
-
     fn parse_proof_request(msg: &str) -> Result<ProofRequest> {
         let proof_request: ProofRequest = serde_json::from_str(msg)?;
         Ok(proof_request)
@@ -108,29 +51,30 @@ impl Gevson {
     fn handle_incoming_messages(&mut self) {
         if self.incoming.len() > 0 {
             tracing::info!("we have incoming");
+            let timestamp = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
             for gm in &self.incoming {
                 let res = Gevson::parse_proof_request(&gm.msg);
                 if res.is_ok() {
                     let proof_request = res.unwrap();
                     let job = Job {
                         proof_request,
-                        // data_directory: sedata_directory.clone(),
-                        // gevson_env: gevson_env.clone(),
-                        timestamp: SystemTime::now()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis() as u64,
-                        // json_url: json_url.clone(),
+                        timestamp,
                         state: JobState::Pending,
+                        client_id: gm.client_id,
                     };
                     tracing::info!("add new job: {:?}", job);
                     self.jobs.push(job);
                 } else {
-                    let response = GevsonMsg {
-                        msg: "Could not parse message as ProofRequest".to_string(),
+                    let response =
+                        Response::new_as_json(ResponseType::UnparsableRequest, timestamp);
+                    let gevmsg = GevsonMsg {
+                        msg: response,
                         client_id: gm.client_id,
                     };
-                    self.outgoing.push(response);
+                    self.outgoing.push(gevmsg);
                 }
             }
             self.incoming.clear();
@@ -168,6 +112,14 @@ impl Gevson {
                 || job.state == JobState::TimedOut
             {
                 tracing::info!("removing job");
+                if job.state == JobState::TimedOut {
+                    let response = Response::new_as_json(ResponseType::TimedOut, job.timestamp);
+                    let gevmsg = GevsonMsg {
+                        msg: response,
+                        client_id: job.client_id,
+                    };
+                    self.outgoing.push(gevmsg);
+                }
                 self.jobs.remove(n);
                 break;
             }
@@ -183,12 +135,10 @@ impl Gevson {
                 match event_hub.poll_event() {
                     Event::Connect(client_id, responder) => {
                         tracing::info!("A client connected with id #{}", client_id);
-                        // add their Responder to our `clients` map:
                         self.clients.insert(client_id, responder);
                     }
                     Event::Disconnect(client_id) => {
                         tracing::info!("Client #{} disconnected.", client_id);
-                        // remove the disconnected client from the clients map:
                         self.clients.remove(&client_id);
                     }
                     Event::Message(client_id, message) => {
@@ -204,10 +154,6 @@ impl Gevson {
                         let request = GevsonMsg { msg, client_id };
                         tracing::info!("adding new request");
                         self.incoming.push(request);
-                        // retrieve this client's `Responder`:
-                        // let responder = clients.get(&client_id).unwrap();
-                        // // echo the message back:
-                        // responder.send(message);
                     }
                 }
             }
