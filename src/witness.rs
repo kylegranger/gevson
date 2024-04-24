@@ -1,9 +1,9 @@
-use crate::types::ProverInput;
+use crate::types::{DataSource, ProverInput};
 use anyhow::Result;
-// use serde::{Deserialize, Serialize};
-// use std::fs;
-// use std::path::PathBuf;
+use std::path::PathBuf;
+use std::{fs, fs::File, io::copy};
 
+#[allow(dead_code)]
 pub struct Witness {
     inputs: Vec<ProverInput>,
     hash: Option<String>,
@@ -19,22 +19,31 @@ impl Witness {
         }
     }
 
-    pub fn init(&mut self) -> Result<()> {
-        // match self.inputs.source {
-        //     InputsSource::Url(_url) => {
-        //         todo!()
-        //     }
-        //     InputsSource::Data(data) => {
-        //         self.data = data.as_bytes().to_vec();
-        //     }
-        //     InputsSource::File(filepath) => {
-        //         let filepath = PathBuf::from(filepath);
-        //         let s = fs::read_to_string(filepath)?;
-        //         tracing::info!("string from file length {}", s.len());
-        //         self.data = s.as_bytes().to_vec();
-        //     }
-        // }
-        // tracing::info!("witness data length {}", self.data.len());
-        Ok(())
+    pub fn init_local_file(&mut self, data_directory: &str) -> Result<PathBuf> {
+        let localfile = format!("{}/{}", data_directory, self.inputs[0].name);
+        let localpath = PathBuf::from(&localfile);
+        match &self.inputs[0].source {
+            DataSource::Url(url) => {
+                tracing::info!("download from url: {}", url);
+                let mut resp = reqwest::blocking::get(url)?;
+                tracing::info!("resp: {:?}", resp);
+                tracing::info!("localpath: {:?}", localpath);
+                let mut out = File::create(&localpath).expect("failed to create file");
+                copy(&mut resp, &mut out).expect("failed to copy content");
+                tracing::info!("done creating file");
+                return Ok(localpath);
+            }
+            DataSource::Blob(data) => {
+                fs::write(&localpath, data)?;
+                return Ok(localpath);
+            }
+            DataSource::Text(text) => {
+                fs::write(&localpath, text)?;
+                return Ok(localpath);
+            }
+            DataSource::File(filepath) => {
+                return Ok(PathBuf::from(filepath));
+            }
+        }
     }
 }

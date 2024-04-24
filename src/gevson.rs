@@ -5,7 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
 
@@ -20,6 +20,7 @@ pub struct GevsonMsg {
     pub client_id: u64,
 }
 
+#[allow(dead_code)]
 pub struct Gevson {
     data_directory: String,
     json_url: String,
@@ -97,7 +98,7 @@ impl Gevson {
 
         for job in &mut *self.jobs {
             let res = match job.state {
-                JobState::Pending => job.do_pending(),
+                JobState::Pending => job.do_pending(&self.data_directory),
                 JobState::Active => job.do_active(),
                 _ => Ok(()),
             };

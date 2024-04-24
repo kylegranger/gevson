@@ -15,19 +15,16 @@ pub enum JobState {
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct Job {
     pub proof_request: ProofRequest,
-    // pub data_directory: String,
-    // pub gevson_env: GevsonEnv,
     pub timestamp: u64,
-    // pub json_url: String,
     pub state: JobState,
     pub client_id: u64,
 }
 
+#[allow(dead_code)]
 pub fn system_command(cmd: String) -> Result<()> {
-    // this is a truly sucky thing about Rust
+    // This is a truly sucky thing about Rust. There, I said it.
     let mut parts = cmd.split_whitespace();
     let mut args = Vec::new();
     loop {
@@ -59,7 +56,7 @@ pub fn system_command(cmd: String) -> Result<()> {
 }
 
 impl Job {
-    fn timed_out(&mut self) -> bool {
+    fn is_timed_out(&mut self) -> bool {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -68,13 +65,14 @@ impl Job {
     }
 
     pub fn do_active(&mut self) -> Result<()> {
-        if self.timed_out() {
+        if self.is_timed_out() {
             tracing::info!("  job timed out");
             self.state = JobState::TimedOut;
         }
         Ok(())
     }
-    fn upload_file(&mut self, localfile: &String) -> Result<String> {
+    #[allow(dead_code)]
+    fn upload_file(&mut self, _localfile: &String) -> Result<String> {
         // let
         // if self.gevson_env.upload_cmd.is_none() {
         //     tracing::warn!("No upload command template string");
@@ -97,12 +95,15 @@ impl Job {
         Ok("url".to_string())
     }
 
-    pub fn do_pending(&mut self) -> Result<()> {
+    pub fn do_pending(&mut self, data_directory: &str) -> Result<()> {
         tracing::info!("job: do_pending: {:?}", self);
 
         // create our witness
         let mut witness = Witness::new(self.proof_request.inputs.clone());
-        witness.init()?;
+
+        // If Url, Blob, or Text source, create local file
+        // otherwise, use file passed in
+        let _localpath = witness.init_local_file(data_directory)?;
 
         // // write the file and get checksum
         // let localfile = format!("{}/{}", self.data_directory, witness.filename);
@@ -126,6 +127,7 @@ impl Job {
     }
 }
 
+#[allow(dead_code)]
 pub fn extract_hash_from_file_content(path: &Path) -> Result<String> {
     let mut hasher = blake3::Hasher::new();
     let fd = std::fs::File::open(path)?;

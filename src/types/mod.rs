@@ -1,5 +1,5 @@
 mod hash;
 mod proofrequest;
 mod response;
-pub use proofrequest::{ProofRequest, ProverInput};
+pub use proofrequest::{DataSource, ProofRequest, ProverInput};
 pub use response::{Response, ResponseType};

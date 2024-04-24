@@ -1,17 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum ProverSource {
+pub enum DataSource {
     Url(String),
     File(String),
     Text(String),
-    Data(Vec<u8>),
+    Blob(Vec<u8>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProverInput {
     pub name: String,
-    pub source: ProverSource,
+    pub source: DataSource,
 }
 
 #[derive(PartialEq, Clone, Copy, Debug, Deserialize, Serialize)]

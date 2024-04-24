@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::time::SystemTime;
 
+#[allow(dead_code)]
 pub enum ResponseType {
     UnparsableRequest,
     TimedOut,
@@ -24,6 +25,7 @@ impl Response {
             .as_millis() as u64;
         now - start_in_ms
     }
+
     pub fn new_as_json(response_type: ResponseType, start_in_ms: u64) -> String {
         let duration_in_ms = Response::get_duration(start_in_ms);
         let response = match response_type {
@@ -43,6 +45,8 @@ impl Response {
         };
         json!(response).to_string()
     }
+
+    #[allow(dead_code)]
     pub fn new_from_result_as_json(
         response_type: ResponseType,
         result: String,
