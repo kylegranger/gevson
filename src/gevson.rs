@@ -50,7 +50,7 @@ impl Gevson {
 
     fn handle_incoming_messages(&mut self) {
         if self.incoming.len() > 0 {
-            tracing::info!("we have incoming");
+            tracing::info!("we have incoming messages!");
             let timestamp = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
@@ -83,7 +83,7 @@ impl Gevson {
 
     fn handle_outgoing_messages(&mut self) {
         if self.outgoing.len() > 0 {
-            tracing::info!("we have outgoing");
+            tracing::info!("we have outgoing messages!");
             for gm in &self.outgoing {
                 let responder = self.clients.get(&gm.client_id).unwrap();
                 responder.send(Message::Text(gm.msg.clone()));
@@ -91,6 +91,12 @@ impl Gevson {
             self.outgoing.clear();
         }
     }
+
+    /// The main task that runs every 100 ms
+    /// - checks incoming & outgoing messages
+    /// - jobs
+    ///   - check for timed out requests
+    ///   - poll gevulot for proof completion (every 10 seconds, per request)
     fn loop_task(&mut self) {
         self.handle_incoming_messages();
         self.handle_outgoing_messages();
@@ -128,6 +134,11 @@ impl Gevson {
         sleep(Duration::from_millis(100));
     }
 
+    /// This is the beating heart of gevson.
+    /// One loop to rule them all
+    /// In the end, the events are fairly sparse
+    /// - ws events
+    /// - everything else happens in loop_task
     pub fn run(&mut self) {
         let event_hub = simple_websockets::launch(8080).expect("failed to listen on port 8080");
         loop {

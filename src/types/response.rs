@@ -64,3 +64,43 @@ impl Response {
         json!(response).to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::types::{Response, ResponseType};
+    use std::time::SystemTime;
+
+    #[test]
+    fn test_new_as_json() {
+        println!("test: test_new_as_json");
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        let jresponse = Response::new_as_json(ResponseType::UnparsableRequest, now);
+        let response: Response = serde_json::from_str(&jresponse).unwrap();
+        println!("response: {:?}", response);
+
+        assert!(!response.success);
+        assert_eq!(response.duration_in_ms, 0);
+        assert_eq!(
+            response.message.unwrap(),
+            "Could not parse message as ProofRequest"
+        );
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
+            - 6765;
+
+        let jresponse = Response::new_as_json(ResponseType::TimedOut, now);
+        let response: Response = serde_json::from_str(&jresponse).unwrap();
+        println!("response: {:?}", response);
+
+        assert!(!response.success);
+        assert_eq!(response.duration_in_ms, 6765);
+        assert_eq!(response.message.unwrap(), "The proof request timed out");
+    }
+}
