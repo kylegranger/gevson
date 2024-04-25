@@ -51,6 +51,7 @@ impl Witness {
 
 #[cfg(test)]
 mod tests {
+    use crate::job::extract_hash_from_file_content;
     use crate::types::{DataSource, ProofRequest, Prover, ProverInput, ProverSchema};
     use crate::witness::Witness;
     use std::fs;
@@ -130,5 +131,48 @@ mod tests {
             "./testdata/witness-441240.json".to_string()
         );
         assert_eq!(inbytes.len(), 26588);
+    }
+
+    #[test]
+    fn test_data_source_url() {
+        println!("test: test_data_source_url");
+        let proof_request = ProofRequest {
+            inputs: vec![ProverInput {
+                name: "test-2001".to_string(),
+                source: DataSource::Url(
+                    "https://gevulot-test.eu-central-1.linodeobjects.com/witness-28020.json"
+                        .to_string(),
+                ),
+            }],
+            outputs: vec!["proof.json".to_string()],
+            prover: Prover {
+                schema: ProverSchema::Katla,
+                prover_hash: "5678abcd".to_string(),
+                verifier_hash: "5678abcd".to_string(),
+            },
+            timeout: 10,
+        };
+
+        let mut witness = Witness::new(proof_request.inputs.clone());
+        let localpath = witness.init_local_file("./data").unwrap();
+        let inbytes = std::fs::read_to_string(localpath.clone())
+            .unwrap()
+            .as_bytes()
+            .to_vec();
+
+        println!("test localpath: {:?}", localpath);
+        println!("read {} bytes", inbytes.len());
+        assert_eq!(
+            localpath.clone().into_os_string().into_string().unwrap(),
+            "./data/test-2001".to_string()
+        );
+        assert_eq!(inbytes.len(), 198235);
+
+        let hash = extract_hash_from_file_content(&localpath).unwrap();
+        println!("hash returned: {:?}", hash);
+        assert_eq!(
+            hash,
+            "a113174a743a016c0b55f429548b1b80bc2fbebf721f2ca3aaeec132f581c835"
+        );
     }
 }

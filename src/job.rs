@@ -142,10 +142,10 @@ mod tests {
         println!("test: test_hash_extraction");
         let testpath = PathBuf::from("./testdata/witness-441240.json");
         let hash = extract_hash_from_file_content(&testpath).unwrap();
+        println!("hash returned: {:?}", hash);
         assert_eq!(
             hash,
             "69ce970a3ee690f3b635a548bd10a66c11c22701734e948a4f7dcb13126e1bb4"
         );
-        println!("hash returned: {:?}", hash);
     }
 }

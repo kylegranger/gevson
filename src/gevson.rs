@@ -43,7 +43,7 @@ impl Gevson {
         }
     }
 
-    fn parse_proof_request(msg: &str) -> Result<ProofRequest> {
+    pub fn parse_proof_request(msg: &str) -> Result<ProofRequest> {
         let proof_request: ProofRequest = serde_json::from_str(msg)?;
         Ok(proof_request)
     }
@@ -159,5 +159,37 @@ impl Gevson {
             }
             self.loop_task();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::gevson::Gevson;
+    use crate::types::{DataSource, ProofRequest, Prover, ProverInput, ProverSchema};
+    use serde_json::json;
+
+    #[test]
+    fn test_proof_request_parsing() {
+        let proof_request = ProofRequest {
+            inputs: vec![ProverInput {
+                name: "test-1234".to_string(),
+                source: DataSource::Text("text".to_string()),
+            }],
+            outputs: vec!["proof.json".to_string()],
+            prover: Prover {
+                schema: ProverSchema::Katla,
+                prover_hash: "1234abcd".to_string(),
+                verifier_hash: "1234abcd".to_string(),
+            },
+            timeout: 10,
+        };
+        let jrequest = json!(proof_request).to_string();
+        let res = Gevson::parse_proof_request(&jrequest);
+        assert!(res.is_ok());
+
+        // should fail with no timeout field
+        let jbad = jrequest.replace("timeout", "time");
+        let res = Gevson::parse_proof_request(&jbad);
+        assert!(!res.is_ok());
     }
 }
