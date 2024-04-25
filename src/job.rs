@@ -123,11 +123,29 @@ impl Job {
     }
 }
 
-#[allow(dead_code)]
 pub fn extract_hash_from_file_content(path: &Path) -> Result<String> {
     let mut hasher = blake3::Hasher::new();
     let fd = std::fs::File::open(path)?;
     hasher.update_reader(fd)?;
     let checksum = hasher.finalize().to_string();
     Ok((&checksum).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::job::extract_hash_from_file_content;
+
+    #[test]
+    fn test_hash_extraction() {
+        println!("test: test_hash_extraction");
+        let testpath = PathBuf::from("./testdata/witness-441240.json");
+        let hash = extract_hash_from_file_content(&testpath).unwrap();
+        assert_eq!(
+            hash,
+            "69ce970a3ee690f3b635a548bd10a66c11c22701734e948a4f7dcb13126e1bb4"
+        );
+        println!("hash returned: {:?}", hash);
+    }
 }

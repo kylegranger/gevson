@@ -43,3 +43,5 @@ RUST_LOG=trace ./target/debug/gevson -n named  -s katla -u https://gevulot-test.
 RUST_LOG=trace ./target/debug/gevson -r gevulot/request.json -d ./data
 
 RUST_LOG=trace ./target/debug/gevson -d ./data
+
+cargo test -- --nocapture --test-threads=1

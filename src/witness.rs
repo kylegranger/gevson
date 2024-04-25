@@ -1,4 +1,5 @@
-use crate::types::{DataSource, ProverInput};
+#[allow(unused_imports)]
+use crate::types::{DataSource, Prover, ProverInput, ProverSchema};
 use anyhow::Result;
 use std::path::PathBuf;
 use std::{fs, fs::File, io::copy};
@@ -45,5 +46,89 @@ impl Witness {
                 return Ok(PathBuf::from(filepath));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::{DataSource, ProofRequest, Prover, ProverInput, ProverSchema};
+    use crate::witness::Witness;
+    use std::fs;
+
+    #[test]
+    fn test_data_source_blob() {
+        println!("test: test_data_source_blob");
+
+        let mut bytes = Vec::new();
+
+        // 43-byte array, 0..42
+        for i in 0..43 {
+            bytes.push(i as u8);
+        }
+        let proof_request = ProofRequest {
+            inputs: vec![ProverInput {
+                name: "test-1234".to_string(),
+                source: DataSource::Blob(bytes),
+            }],
+            outputs: vec!["proof.json".to_string()],
+            prover: Prover {
+                schema: ProverSchema::Katla,
+                prover_hash: "1234abcd".to_string(),
+                verifier_hash: "1234abcd".to_string(),
+            },
+            timeout: 10,
+        };
+
+        let mut witness = Witness::new(proof_request.inputs.clone());
+        let localpath = witness.init_local_file("./data").unwrap();
+        let inbytes = std::fs::read_to_string(localpath.clone())
+            .unwrap()
+            .as_bytes()
+            .to_vec();
+
+        println!("test localpath: {:?}", localpath);
+        println!("read {} bytes", inbytes.len());
+        assert_eq!(
+            localpath.clone().into_os_string().into_string().unwrap(),
+            "./data/test-1234".to_string()
+        );
+        assert_eq!(inbytes.len(), 43);
+        assert_eq!(inbytes[7], 7);
+        assert_eq!(inbytes[42], 42);
+
+        let _ = fs::remove_file(localpath);
+    }
+
+    #[test]
+    fn test_data_source_file() {
+        println!("test: test_data_source_file");
+        let proof_request = ProofRequest {
+            inputs: vec![ProverInput {
+                name: "test-5678".to_string(),
+                source: DataSource::File("./testdata/witness-441240.json".to_string()),
+            }],
+            outputs: vec!["proof.json".to_string()],
+            prover: Prover {
+                schema: ProverSchema::Katla,
+                prover_hash: "5678abcd".to_string(),
+                verifier_hash: "5678abcd".to_string(),
+            },
+            timeout: 10,
+        };
+
+        let mut witness = Witness::new(proof_request.inputs.clone());
+        let localpath = witness.init_local_file("./data").unwrap();
+        let inbytes = std::fs::read_to_string(localpath.clone())
+            .unwrap()
+            .as_bytes()
+            .to_vec();
+
+        println!("test localpath: {:?}", localpath);
+        println!("read {} bytes", inbytes.len());
+        assert_eq!(
+            localpath.clone().into_os_string().into_string().unwrap(),
+            "./testdata/witness-441240.json".to_string()
+        );
+        assert_eq!(inbytes.len(), 26588);
     }
 }
