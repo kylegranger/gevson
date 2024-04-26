@@ -141,8 +141,8 @@ impl Gevson {
     /// In the end, the events are fairly sparse
     /// - ws events
     /// - everything else happens in loop_task
-    pub fn run(&mut self) {
-        let event_hub = simple_websockets::launch(8080).expect("failed to listen on port 8080");
+    pub fn run(&mut self, port: u16) {
+        let event_hub = simple_websockets::launch(port).expect("failed to listen on port 8080");
         loop {
             if !event_hub.is_empty() {
                 match event_hub.poll_event() {
