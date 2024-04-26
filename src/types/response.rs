@@ -66,7 +66,6 @@ mod tests {
 
     #[test]
     fn test_new_as_json() {
-        println!("test: test_new_as_json");
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -74,7 +73,6 @@ mod tests {
 
         let jresponse = Response::new_as_json(ResponseType::UnparsableRequest, now);
         let response: Response = serde_json::from_str(&jresponse).unwrap();
-        println!("response: {:?}", response);
 
         assert!(!response.success);
         assert_eq!(response.duration_in_ms, 0);
@@ -92,7 +90,6 @@ mod tests {
 
         let jresponse = Response::new_as_json(ResponseType::TimedOut, now);
         let response: Response = serde_json::from_str(&jresponse).unwrap();
-        println!("response: {:?}", response);
 
         assert!(!response.success);
         assert_eq!(response.duration_in_ms, 6765);
@@ -102,7 +99,6 @@ mod tests {
 
     #[test]
     fn test_success_as_json() {
-        println!("test: test_new_as_json");
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -111,7 +107,6 @@ mod tests {
 
         let jresponse = Response::new_success_as_json("This is the result".to_string(), now);
         let response: Response = serde_json::from_str(&jresponse).unwrap();
-        println!("response: {:?}", response);
 
         assert!(response.success);
         assert_eq!(response.duration_in_ms, 4181);

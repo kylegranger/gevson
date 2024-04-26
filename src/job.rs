@@ -46,7 +46,7 @@ pub fn system_command(cmd: String) -> Result<()> {
         .expect("failed to execute process");
 
     tracing::info!("system_command status: {}", output.status);
-    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    tracing::info!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     let stderr = format!("{}", String::from_utf8_lossy(&output.stderr));
     let success = output.status.success();
     tracing::info!("success: {}", success);
@@ -139,10 +139,8 @@ mod tests {
 
     #[test]
     fn test_hash_extraction() {
-        println!("test: test_hash_extraction");
         let testpath = PathBuf::from("./testdata/witness-441240.json");
         let hash = extract_hash_from_file_content(&testpath).unwrap();
-        println!("hash returned: {:?}", hash);
         assert_eq!(
             hash,
             "69ce970a3ee690f3b635a548bd10a66c11c22701734e948a4f7dcb13126e1bb4"

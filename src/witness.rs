@@ -58,8 +58,6 @@ mod tests {
 
     #[test]
     fn test_data_source_blob() {
-        println!("test: test_data_source_blob");
-
         let mut bytes = Vec::new();
 
         // 43-byte array, 0..42
@@ -87,8 +85,6 @@ mod tests {
             .as_bytes()
             .to_vec();
 
-        println!("test localpath: {:?}", localpath);
-        println!("read {} bytes", inbytes.len());
         assert_eq!(
             localpath.clone().into_os_string().into_string().unwrap(),
             "./data/test-1234".to_string()
@@ -102,7 +98,6 @@ mod tests {
 
     #[test]
     fn test_data_source_file() {
-        println!("test: test_data_source_file");
         let proof_request = ProofRequest {
             inputs: vec![ProverInput {
                 name: "test-5678".to_string(),
@@ -124,8 +119,6 @@ mod tests {
             .as_bytes()
             .to_vec();
 
-        println!("test localpath: {:?}", localpath);
-        println!("read {} bytes", inbytes.len());
         assert_eq!(
             localpath.clone().into_os_string().into_string().unwrap(),
             "./testdata/witness-441240.json".to_string()
@@ -135,7 +128,6 @@ mod tests {
 
     #[test]
     fn test_data_source_url() {
-        println!("test: test_data_source_url");
         let proof_request = ProofRequest {
             inputs: vec![ProverInput {
                 name: "test-2001".to_string(),
@@ -160,8 +152,6 @@ mod tests {
             .as_bytes()
             .to_vec();
 
-        println!("test localpath: {:?}", localpath);
-        println!("read {} bytes", inbytes.len());
         assert_eq!(
             localpath.clone().into_os_string().into_string().unwrap(),
             "./data/test-2001".to_string()
@@ -169,7 +159,6 @@ mod tests {
         assert_eq!(inbytes.len(), 198235);
 
         let hash = extract_hash_from_file_content(&localpath).unwrap();
-        println!("hash returned: {:?}", hash);
         assert_eq!(
             hash,
             "a113174a743a016c0b55f429548b1b80bc2fbebf721f2ca3aaeec132f581c835"
