@@ -50,8 +50,6 @@ Here it is formatted:
 }
 ```
 
-
-
 ## File upload template strings
 
 [todo]
