@@ -15,8 +15,8 @@ pub struct GevsonEnv {
 }
 
 pub struct GevsonMsg {
-    pub msg: String,
-    pub client_id: u64,
+    msg: String,
+    client_id: u64,
 }
 
 #[allow(dead_code)]
@@ -25,10 +25,12 @@ pub struct Gevson {
     json_url: String,
     gevson_env: GevsonEnv,
     jobs: Vec<Job>,
-    pub incoming: Vec<GevsonMsg>,
-    pub outgoing: Vec<GevsonMsg>,
+    incoming: Vec<GevsonMsg>,
+    outgoing: Vec<GevsonMsg>,
     clients: HashMap<u64, Responder>,
 }
+
+const SLEEP_DURATION: u64 = 100;
 
 impl Gevson {
     pub fn new(data_directory: String, json_url: String, gevson_env: GevsonEnv) -> Self {
@@ -94,7 +96,7 @@ impl Gevson {
 
     /// The main task that runs every 100 ms
     /// - checks incoming & outgoing messages
-    /// - jobs
+    /// - doesjobs:
     ///   - check for timed out requests
     ///   - poll gevulot for proof completion (every 10 seconds, per request)
     fn loop_task(&mut self) {
@@ -131,7 +133,7 @@ impl Gevson {
             }
             n += 1;
         }
-        sleep(Duration::from_millis(100));
+        sleep(Duration::from_millis(SLEEP_DURATION));
     }
 
     /// This is the beating heart of gevson.
